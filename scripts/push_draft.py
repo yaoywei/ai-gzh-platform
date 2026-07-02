@@ -16,6 +16,7 @@ APPSECRET = os.getenv('WX_APPSECRET', '')
 
 
 def api_call(path, data=None, method="GET"):
+    import json as _json
     url = f"{PROXY}{path}"
     headers = {"x-publish-token": AUTH_TOKEN}
     if data:
@@ -24,7 +25,12 @@ def api_call(path, data=None, method="GET"):
         if method == "GET":
             resp = http_client.get(url, headers=headers, timeout=30)
         else:
-            resp = http_client.post(url, headers=headers, json=data, timeout=30)
+            # CRITICAL: ensure_ascii=False so Chinese content is sent as raw UTF-8
+            # bytes, not \\uXXXX escape sequences. Using `json=data` triggers
+            # ensure_ascii=True which causes WeChat to display raw \\uXXXX literals
+            # in the draft editor (verified bug 2026-07-02).
+            body = _json.dumps(data, ensure_ascii=False).encode("utf-8")
+            resp = http_client.post(url, headers=headers, data=body, timeout=30)
         return resp.json()
     except Exception as e:
         return {"error": str(e)}

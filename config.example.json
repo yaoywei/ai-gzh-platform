@@ -1,27 +1,73 @@
 {
-  "brand_name": "大姚AI提效",
+  "setup_status": "needs_user_choice",
+  "brand_name": "你的公众号品牌",
   "brand_tag_position": "右下角",
+  "content_directions": [
+    "AI提效",
+    "行业观察",
+    "工具教程"
+  ],
+  "target_audience": {
+    "P1": "核心读者画像1：角色 + 年龄/阶段 + 痛点，例如：小微企业市场/运营专员，1人干3人活",
+    "P2": "核心读者画像2：角色 + 决策压力，例如：中小企业管理者，对上汇报对下管理",
+    "P3": "核心读者画像3：角色 + 转型诉求，例如：传统行业从业者，想用AI提升收入或效率"
+  },
+  "first_run_questions": {
+    "required_before_generation": true,
+    "ask_user_to_choose": [
+      "brand_name",
+      "content_directions",
+      "target_audience",
+      "html_template.style_name",
+      "image_style.name",
+      "image_api.enabled"
+    ],
+    "style_question_text": "第一次使用前，请先选排版风格和配图风格；如果不确定，可直接选 recommended。",
+    "html_template_options": [
+      {"id": "classic-blue", "name": "经典青蓝", "best_for": "通用干货、教程、知识卡片", "colors": {"primary": "#2563EB", "accent": "#0EA5E9", "background": "#FFFFFF"}},
+      {"id": "tech-blue", "name": "科技蓝", "best_for": "AI、SaaS、企业服务、技术产品", "colors": {"primary": "#2563EB", "accent": "#F97316", "background": "#FFFFFF"}, "recommended": true},
+      {"id": "business-purple", "name": "商务紫", "best_for": "咨询、管理、B端解决方案", "colors": {"primary": "#7C3AED", "accent": "#F59E0B", "background": "#FFFFFF"}},
+      {"id": "warm-orange", "name": "温暖橙", "best_for": "个人IP、成长、陪伴型内容", "colors": {"primary": "#F97316", "accent": "#2563EB", "background": "#FFFBF5"}},
+      {"id": "mint-green", "name": "薄荷绿", "best_for": "效率工具、轻教程、清爽知识内容", "colors": {"primary": "#10B981", "accent": "#2563EB", "background": "#F7FFFB"}},
+      {"id": "rose-red", "name": "玫瑰红", "best_for": "女性成长、消费、情绪价值内容", "colors": {"primary": "#E11D48", "accent": "#F97316", "background": "#FFF7FA"}},
+      {"id": "midnight-blue", "name": "深夜蓝", "best_for": "深度分析、趋势判断、行业报告", "colors": {"primary": "#1E3A8A", "accent": "#38BDF8", "background": "#F8FAFC"}},
+      {"id": "minimal-gray", "name": "极简灰", "best_for": "严肃评论、方法论、低装饰感内容", "colors": {"primary": "#374151", "accent": "#111827", "background": "#FFFFFF"}},
+      {"id": "forest-green", "name": "森林绿", "best_for": "长期主义、组织管理、可持续增长", "colors": {"primary": "#166534", "accent": "#F97316", "background": "#F7FCF8"}},
+      {"id": "milk-tea", "name": "奶茶棕", "best_for": "生活方式、副业、温和商业化", "colors": {"primary": "#92400E", "accent": "#D97706", "background": "#FFFBEB"}}
+    ],
+    "image_style_options": [
+      {"id": "baoyu-notion", "name": "baoyu-notion", "best_for": "稳妥通用；封面+信息图；适合知识卡片", "recommended": true},
+      {"id": "xiaoyao-illustrations", "name": "小姚手绘", "best_for": "需要原创IP人格化和系列辨识度"},
+      {"id": "hand-drawn", "name": "手绘风格", "best_for": "轻松、陪伴感、低压教程"},
+      {"id": "minimal-flat", "name": "极简扁平", "best_for": "SaaS、流程图、工具教程"},
+      {"id": "isometric-3d", "name": "等距3D", "best_for": "系统架构、自动化平台、科技感展示"},
+      {"id": "custom", "name": "自定义prompt", "best_for": "已有品牌视觉规范；需要填写 style_prompt_prefix"}
+    ]
+  },
+  "html_template": {
+    "style_name": "tech-blue",
+    "primary_color": "#2563EB",
+    "accent_color": "#F97316",
+    "background_color": "#FFFFFF"
+  },
   "image_style": {
     "name": "baoyu-notion",
     "style_prompt_prefix": ""
   },
   "image_api": {
-    "endpoint": "https://api.bltcy.ai/v1/images/generations",
+    "enabled": false,
+    "endpoint": "https://api.example.com/v1/images/generations",
     "model": "gpt-image-2",
     "key_env": "GPT_IMAGE2_API_KEY",
     "cover_size": "1792x768",
     "infographic_size": "1024x1820",
     "illustration_size": "1792x1024"
   },
-  "html_colors": {
-    "primary": "#2563EB",
-    "accent": "#F97316",
-    "background": "#ffffff"
-  },
   "feishu": {
     "enabled": false,
     "app_id_env": "FEISHU_APP_ID",
-    "app_secret_env": "FEISHU_APP_SECRET"
+    "app_secret_env": "FEISHU_APP_SECRET",
+    "home_channel_env": "FEISHU_HOME_CHANNEL"
   },
   "wechat_proxy": {
     "enabled": false,
@@ -37,21 +83,10 @@
     "position_in_round": 0,
     "history": []
   },
-  "covered_topics": [
-    "AI写周报", "AI写会议纪要", "AI做PPT", "AI做Excel", "AI做复盘",
-    "AI做活动方案", "AI越用越忙", "AI提示词", "AI专属卡", "AI贴图",
-    "AI语音转笔记", "AI面试", "AI简历", "AI谈薪", "AI做海报",
-    "AI做数据报告", "AI30分钟出稿", "AI写小说", "微信AI", "小程序AI",
-    "AI竞品分析", "AI知识库搭建", "AI付费上班", "AI基础岗消失"
-  ],
-  "target_audience": {
-    "P1": "小微企业市场/运营专员，女30-38岁，1人干3人活",
-    "P2": "中小企业中层管理者，35-42岁，对上汇报对下管理",
-    "P3": "转型焦虑传统行业从业者，32-40岁，行业下行想转行"
-  },
+  "covered_topics": [],
   "viral_research": {
     "search_days": 7,
     "min_hot_articles": 3,
-    "platforms": ["公众号", "X"]
+    "platforms": ["公众号", "小红书", "知乎"]
   }
 }

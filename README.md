@@ -60,7 +60,33 @@ skills/ai-gzh-platform/
 3. 复制 `config.example.json` 为 `config.json`，填写你的配置
 4. 注入环境变量（见下方配置说明）
 
+也可以直接运行首次配置向导：
+
+```bash
+python scripts/init_config.py
+```
+
+向导会要求选择排版风格、配图风格和可选能力，并生成本地 `config.json`。
+
 ## 配置说明
+
+第一次使用不要直接编辑到能跑为止，先完成一次"选择向导"。
+
+### 首次使用选择向导
+
+复制模板：
+
+```bash
+cp config.example.json config.json
+```
+
+如果 `setup_status` 仍是 `needs_user_choice`，先回答下面三组问题：
+
+1. 公众号/品牌名 + 2-4个内容方向
+2. P1/P2/P3 读者画像
+3. 排版风格 + 配图风格
+
+不确定时推荐：`tech-blue` + `baoyu-notion`。如果要做系列个人IP，再选 `xiaoyao-illustrations`。
 
 ### 必需配置
 
@@ -69,9 +95,11 @@ skills/ai-gzh-platform/
 | `brand_name` | 品牌名 | 大姚AI提效 |
 | `content_directions` | 内容方向关键词 | ["AI提效", "职场成长"] |
 | `target_audience` | 目标用户画像P1/P2/P3 | 见config.example.json |
-| `html_template.style_name` | 排版风格10选1 | 科技蓝 |
-| `image_style.name` | 配图风格6选1 | xiaoyao-illustrations |
-| `image_api.endpoint` | GPT Image 2 API地址 | https://api.openai.com/v1/images/generations |
+| `html_template.style_name` | 排版风格id，见下方10选1 | tech-blue |
+| `image_style.name` | 配图风格id，见下方6选1 | baoyu-notion |
+| `image_api.enabled` | 是否启用图片生成；默认false | false |
+
+图片、飞书、公众号推草稿都默认关闭。只有 API/凭证实测通过后，才把对应 `enabled` 改成 `true`。
 
 ### 环境变量
 
@@ -96,18 +124,29 @@ skills/ai-gzh-platform/
 
 ## HTML排版风格（10选1）
 
-经典青蓝 · 科技蓝 · 商务紫 · 温暖橙 · 薄荷绿 · 玫瑰红 · 深夜蓝 · 极简灰 · 森林绿 · 奶茶棕
+| id | 中文名 | 适合 |
+|---|---|---|
+| `classic-blue` | 经典青蓝 | 通用干货、教程、知识卡片 |
+| `tech-blue` | 科技蓝 | AI、SaaS、企业服务、技术产品 |
+| `business-purple` | 商务紫 | 咨询、管理、B端解决方案 |
+| `warm-orange` | 温暖橙 | 个人IP、成长、陪伴型内容 |
+| `mint-green` | 薄荷绿 | 效率工具、轻教程、清爽知识内容 |
+| `rose-red` | 玫瑰红 | 女性成长、消费、情绪价值内容 |
+| `midnight-blue` | 深夜蓝 | 深度分析、趋势判断、行业报告 |
+| `minimal-gray` | 极简灰 | 严肃评论、方法论、低装饰感内容 |
+| `forest-green` | 森林绿 | 长期主义、组织管理、可持续增长 |
+| `milk-tea` | 奶茶棕 | 生活方式、副业、温和商业化 |
 
 ## 配图风格（6选1）
 
 | 风格 | 说明 |
 |------|------|
-| baoyu-notion | Notion知识卡风格（默认），封面+2张信息图 |
-| xiaoyao-illustrations | 小姚手绘风格，封面+3-5张正文配图 |
-| hand-drawn | 手绘风格 |
-| minimal-flat | 极简扁平风格 |
-| isometric-3d | 等距3D风格 |
-| custom | 自定义prompt前缀 |
+| `baoyu-notion` | Notion知识卡风格，稳妥通用，封面+2张信息图 |
+| `xiaoyao-illustrations` | 小姚手绘风格，适合原创IP系列，封面+3-5张正文配图 |
+| `hand-drawn` | 手绘风格，适合轻松陪伴型内容 |
+| `minimal-flat` | 极简扁平风格，适合SaaS、流程图、工具教程 |
+| `isometric-3d` | 等距3D风格，适合系统架构、自动化平台展示 |
+| `custom` | 自定义prompt前缀，需要填写 `image_style.style_prompt_prefix` |
 
 ## 脚本说明
 
