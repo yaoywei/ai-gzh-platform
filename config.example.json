@@ -1,0 +1,57 @@
+{
+  "brand_name": "大姚AI提效",
+  "brand_tag_position": "右下角",
+  "image_style": {
+    "name": "baoyu-notion",
+    "style_prompt_prefix": ""
+  },
+  "image_api": {
+    "endpoint": "https://api.bltcy.ai/v1/images/generations",
+    "model": "gpt-image-2",
+    "key_env": "GPT_IMAGE2_API_KEY",
+    "cover_size": "1792x768",
+    "infographic_size": "1024x1820",
+    "illustration_size": "1792x1024"
+  },
+  "html_colors": {
+    "primary": "#2563EB",
+    "accent": "#F97316",
+    "background": "#ffffff"
+  },
+  "feishu": {
+    "enabled": false,
+    "app_id_env": "FEISHU_APP_ID",
+    "app_secret_env": "FEISHU_APP_SECRET"
+  },
+  "wechat_proxy": {
+    "enabled": false,
+    "server_ip": "",
+    "proxy_port": 8787,
+    "auth_token_env": "WX_PROXY_TOKEN",
+    "appid_env": "WX_APPID",
+    "appsecret_env": "WX_APPSECRET"
+  },
+  "content_ratio": [60, 30, 10],
+  "round_state": {
+    "round": 1,
+    "position_in_round": 0,
+    "history": []
+  },
+  "covered_topics": [
+    "AI写周报", "AI写会议纪要", "AI做PPT", "AI做Excel", "AI做复盘",
+    "AI做活动方案", "AI越用越忙", "AI提示词", "AI专属卡", "AI贴图",
+    "AI语音转笔记", "AI面试", "AI简历", "AI谈薪", "AI做海报",
+    "AI做数据报告", "AI30分钟出稿", "AI写小说", "微信AI", "小程序AI",
+    "AI竞品分析", "AI知识库搭建", "AI付费上班", "AI基础岗消失"
+  ],
+  "target_audience": {
+    "P1": "小微企业市场/运营专员，女30-38岁，1人干3人活",
+    "P2": "中小企业中层管理者，35-42岁，对上汇报对下管理",
+    "P3": "转型焦虑传统行业从业者，32-40岁，行业下行想转行"
+  },
+  "viral_research": {
+    "search_days": 7,
+    "min_hot_articles": 3,
+    "platforms": ["公众号", "X"]
+  }
+}
