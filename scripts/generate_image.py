@@ -64,37 +64,75 @@ def generate_image(prompt: str, size: str, output: str, n: int = 1) -> str:
         "size": size,
     }
 
-    # 发起请求
-    try:
-        print(f"🎨 生成图片中... (model={model}, size={size})")
-        resp = http_client.post(endpoint, json=payload, headers=headers, timeout=300)
-        resp.raise_for_status()
-        result = resp.json()
-    except http_client.exceptions.HTTPError as e:
-        body = e.response.text if e.response else ""
-        print(f"❌ API请求失败: HTTP {e.response.status_code} - {body}", file=sys.stderr)
-        sys.exit(1)
-    except http_client.exceptions.ConnectionError as e:
-        print(f"❌ 网络连接失败: {e}", file=sys.stderr)
-        sys.exit(1)
-    except http_client.exceptions.Timeout:
-        print("❌ 请求超时(300s)", file=sys.stderr)
-        sys.exit(1)
+    # 发起请求（指数退避重试：2s → 4s → 8s，共 3 次）
+    import time
 
-    # 解析结果
-    if "data" not in result or not result["data"]:
+    max_retries = 3
+    result = None
+    for attempt in range(1, max_retries + 1):
+        try:
+            print(f"🎨 生成图片中... (model={model}, size={size}, attempt={attempt}/{max_retries})")
+            resp = http_client.post(endpoint, json=payload, headers=headers, timeout=300)
+            resp.raise_for_status()
+            result = resp.json()
+            break
+        except http_client.exceptions.HTTPError as e:
+            body = e.response.text if e.response else ""
+            status = e.response.status_code if e.response else 0
+            # 4xx 不重试（401/403/422 是配置错误），429 除外
+            if 400 <= status < 500 and status != 429:
+                print(f"❌ API请求失败: HTTP {status} - {body}", file=sys.stderr)
+                sys.exit(1)
+            if attempt < max_retries:
+                wait = 2 ** attempt
+                print(f"⚠️ HTTP {status}, {wait}s 后重试...", file=sys.stderr)
+                time.sleep(wait)
+            else:
+                print(f"❌ API请求失败(已重试{max_retries}次): HTTP {status} - {body}", file=sys.stderr)
+                sys.exit(1)
+        except http_client.exceptions.ConnectionError as e:
+            if attempt < max_retries:
+                wait = 2 ** attempt
+                print(f"⚠️ 网络连接失败, {wait}s 后重试... ({e})", file=sys.stderr)
+                time.sleep(wait)
+            else:
+                print(f"❌ 网络连接失败(已重试{max_retries}次): {e}", file=sys.stderr)
+                sys.exit(1)
+        except http_client.exceptions.Timeout:
+            if attempt < max_retries:
+                wait = 2 ** attempt
+                print(f"⚠️ 请求超时(300s), {wait}s 后重试...", file=sys.stderr)
+                time.sleep(wait)
+            else:
+                print(f"❌ 请求超时(已重试{max_retries}次, 300s/次)", file=sys.stderr)
+                sys.exit(1)
+
+    # 解析结果：兼容 url 与 b64_json 两种 OpenAI-compatible 图片返回形态
+    if result is None or "data" not in result or not result["data"]:
         print(f"❌ API返回异常: {json.dumps(result, ensure_ascii=False)}", file=sys.stderr)
         sys.exit(1)
 
-    image_url = result["data"][0].get("url")
-    if not image_url:
-        print("❌ 返回数据中无图片URL", file=sys.stderr)
-        sys.exit(1)
-
-    # 下载图片
+    item = result["data"][0]
     output_path = Path(output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
+    if item.get("b64_json"):
+        try:
+            import base64
+            output_path.write_bytes(base64.b64decode(item["b64_json"]))
+            file_size = output_path.stat().st_size
+            print(f"✅ 图片已保存: {output_path} ({file_size:,} bytes, from b64_json)")
+            return str(output_path)
+        except Exception as e:
+            print(f"❌ b64_json 解码失败: {e}", file=sys.stderr)
+            sys.exit(1)
+
+    image_url = item.get("url")
+    if not image_url:
+        print("❌ 返回数据中无图片URL或b64_json", file=sys.stderr)
+        sys.exit(1)
+
+    # 下载图片
     try:
         print(f"⬇️ 下载图片到: {output_path}")
         img_resp = http_client.get(image_url, timeout=60)

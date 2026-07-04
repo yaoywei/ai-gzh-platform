@@ -90,16 +90,32 @@ def push_draft(title, author, digest, html_path, cover_path, img_paths):
     with open(html_path, "r", encoding="utf-8") as f:
         html = f.read()
 
+    # Pattern 1: base64 inline images (微信粘贴版)
     base64_pattern = r'<img[^>]*src="(data:image/[^"]+)"[^>]*>'
     matches = list(re.finditer(base64_pattern, html))
 
     for i, match in enumerate(matches):
         if i < len(img_paths) and img_paths[i] in wx_urls:
             html = html.replace(match.group(1), wx_urls[img_paths[i]], 1)
-            print(f"  替换第{i+1}张: {img_paths[i]}")
+            print(f"  替换第{i+1}张(base64): {img_paths[i]}")
 
-    remaining = len(re.findall(base64_pattern, html))
-    print(f"  残留base64: {remaining}, 处理后: {len(html)} bytes")
+    # Pattern 2: relative-path images like imgs/01.jpg (推草稿版)
+    rel_pattern = r'<img[^>]*src="(imgs/[^"]+)"[^>]*>'
+    rel_matches = list(re.finditer(rel_pattern, html))
+
+    for match in rel_matches:
+        rel_path = match.group(1)
+        # Try to match against img_paths by basename
+        rel_basename = os.path.basename(rel_path)
+        for full_path in img_paths:
+            if os.path.basename(full_path) == rel_basename and full_path in wx_urls:
+                html = html.replace(rel_path, wx_urls[full_path], 1)
+                print(f"  替换(rel): {rel_path} → {wx_urls[full_path][:60]}...")
+                break
+
+    remaining_b64 = len(re.findall(base64_pattern, html))
+    remaining_rel = len(re.findall(rel_pattern, html))
+    print(f"  残留base64: {remaining_b64}, 残留相对路径: {remaining_rel}, 处理后: {len(html)} bytes")
 
     # 5. 创建草稿
     print("5. 创建草稿...")
