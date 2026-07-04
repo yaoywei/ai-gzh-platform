@@ -151,6 +151,8 @@ Body: {
 
 **限制**：单次 `children` 数组**最多 50 个**（实测 51+ 报 `the max len is 50`）。超过要分批。
 
+**⚠️ 写入前必做**：先用 1 个 block 测试格式，确认返回 code=0 后再批量写入。不同 block_type 的 elements 结构不同，直接批量写容易触发 1770001 invalid param。详见 `references/feishu-block-pitfall.md`。
+
 **验证方法**：
 
 ```bash
@@ -238,3 +240,48 @@ print(json.loads(urllib.request.urlopen(req).read()))
 7. ✅ 通知用户：发飞书消息 + 4 张图 + .md + .html
 
 任一不通过 → 立刻删草稿 + 修脚本 + 重发。
+
+---
+
+## 坑 9：WX_PROXY_SERVER 环境变量未设置导致 URL 构建失败（2026-07-04 实测）
+
+**复现条件**：`~/.hermes/.env` 中没有 `WX_PROXY_SERVER` 配置，或 `source .env` 后未 `export`。
+
+**症状**：
+```
+token失败: {'error': "Invalid URL 'http://:8787/cgi-bin/token?...': No host supplied"}
+```
+URL 变成 `http://:8787/...`，host 为空。
+
+**根因**：`push_draft.py` 用 `f"http://{os.getenv('WX_PROXY_SERVER', '')}:{os.getenv('WX_PROXY_PORT', '8787')}"` 构建 URL。当 `WX_PROXY_SERVER` 为空时，host 部分为空。
+
+**修法**（三步）：
+
+1. 在 `~/.hermes/.env` 中添加：
+```bash
+WX_PROXY_SERVER=10.0.0.4  # 替换为你的本机IP
+```
+
+2. 更新 `config.json`：
+```json
+{
+  "wechat_proxy": {
+    "enabled": true,
+    "server_ip": "10.0.0.4"
+  }
+}
+```
+
+3. 运行时确保 export：
+```bash
+source ~/.hermes/.env && export WX_PROXY_SERVER WX_PROXY_PORT WX_PROXY_TOKEN WX_APPID WX_APPSECRET
+```
+
+**验证方法**：
+```bash
+# 测试wx-proxy连通性
+curl -s "http://$WX_PROXY_SERVER:8787/health"
+# 应返回 {"status": "ok", "proxy": "wx-api-proxy"}
+```
+
+**⚠️ 关键**：`source .env` 只是读取变量到当前 shell，Python 子进程拿不到。必须 `export` 才能传给子进程。

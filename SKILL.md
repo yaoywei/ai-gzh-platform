@@ -264,15 +264,33 @@
 250|- [ ] Step 10: HTML转换 → html/{slug}-微信粘贴版-v1.html + {slug}-推草稿版-v1.html
 251|      双HTML模式（必做）：见 references/two-html-pattern.md
 252|      推草稿前必跑：compress_images.py → HTML 引用 .jpg 不含封面 → check_title_digest.py
-253|- [ ] Step 11: 资料包创建（可选，feishu.enabled=true时）
-254|      飞书doc分两步写入（POST /documents → POST /blocks/{id}/children），按30/batch分批。
-255|      顺序约束：飞书doc必须在HTML之前创建（CTA链接嵌入doc_id）。
-256|      详见 references/push-draft-pitfalls.md 坑5-6
+- [ ] Step 11: 资料包创建（可选，feishu.enabled=true时）
+      飞书doc分两步写入（POST /documents → POST /blocks/{id}/children），按30/batch分批。
+      顺序约束：飞书doc必须在HTML之前创建（CTA链接嵌入doc_id）。
+      详见 references/push-draft-pitfalls.md 坑5-6
+
+      **⚠️ 资料包内容规范**：资料包是公众号文章的**补充材料**，不是复制版。
+      资料包应包含：
+      - 核心结论速览（3-5条关键数据点）
+      - 详细案例/服务商对比清单（文章中提到但未展开的内容）
+      - 避坑指南/选型建议
+      - 实操Checklist（读者可直接使用的清单）
+      - 常见问题FAQ
+      - 延伸阅读/参考资料
+
+      **⚠️ 权限设置**：创建文档后必须设置公开权限，否则公众号CTA链接读者打不开。
+      ```python
+      PATCH /open-apis/drive/v1/permissions/{doc_id}/public?type=docx
+      Body: {"external_access_entity": "open", "link_share_entity": "anyone_readable"}
+      ```
 - [ ] Step 12: 推草稿到公众号（可选，wechat_proxy.enabled=true时）
       传输层详见 `wechat-official-account` skill（两个静默损坏bug + wx-proxy部署 + 错误码表）。
       预处理3步：compress_images.py → HTML不嵌cover → check_title_digest.py
       python3 scripts/push_draft.py --title "标题" --digest "摘要" --html 推草稿版.html --cover cover.jpg --images imgs/*.jpg
       推完自动验证：拉draft/get确认中文字符>1000且\u=0。失败自动删草稿+诊断Bug#1/Bug#2。
+
+      **⚠️ WX_PROXY_SERVER 必须 export**：`source ~/.hermes/.env` 后必须 `export WX_PROXY_SERVER`，否则 Python 子进程拿不到。
+      完整命令：`source ~/.hermes/.env && export WX_PROXY_SERVER WX_PROXY_PORT WX_PROXY_TOKEN WX_APPID WX_APPSECRET && python3 scripts/push_draft.py ...`
 261|- [ ] Step 13: 交付通知
 262|      推送全部产出物：article.md + HTML×2 + 配图 + 资料包链接 + CTA关键词。
 263|      更新 state.json: {"step":13,"pushed":true}
@@ -339,6 +357,11 @@
 323|6. **GPT Image 2 偶有英文字母混入** → 记录即可，不重生成
 324|7. **只产一个HTML版本** → 永远产两个（微信粘贴版+推草稿版）
 325|8. **表头分隔行被渲染** → 过滤 `all(set(c)<=set("-: ") for c in row)`
+9. **MiniMax Token Plan 2056** → vision_analyze 等 LLM 调用返回 rate_limit_error，视觉 QA 被阻塞时记录到验收表「visual QA: ⚠️ 跳过（Token Plan 用量上限）」，不阻塞 HTML/交付。
+10. **飞书 block_type 编号错误** → 飞书 docx API block_type 不是自增整数，必须查 `references/feishu-block-pitfall.md` 速查表。写入前先用 1 个 block 测试格式，通过再批量（1770001 invalid param）。
+11. **WX_PROXY_SERVER 未设置** → `push_draft.py` 报 `Invalid URL 'http://:8787/...'`，host 为空。修法：`~/.hermes/.env` 添加 `WX_PROXY_SERVER=本机IP`，运行时 `source .env && export WX_PROXY_SERVER`。
+12. **飞书资料包与公众号文章重复** → 资料包是补充材料（服务商对比/避坑指南/实操清单/FAQ），不是文章复制版。Step 11 必须独立设计内容结构。
+13. **飞书文档权限未开放** → 创建后默认仅组织内可见，需调用 `PATCH /drive/v1/permissions/{token}/public` 设置 `link_share_entity: anyone_readable`，否则公众号 CTA 链接读者打不开。
 326|
 327|详见 `references/live-failures.md`
 328|
