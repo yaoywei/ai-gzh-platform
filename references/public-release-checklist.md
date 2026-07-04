@@ -23,6 +23,16 @@ Use when packaging or syncing this skill to GitHub / a public skill registry.
    - Keep `scripts/init_config.py` in the repo.
    - Smoke-test it in a temp directory so it does not overwrite the operator's real `config.json`.
 
+5. **引导/模板内容不能硬编码作者个人品牌**
+   - 新用户 clone 后首次引导看到的所有示例必须用通用占位符：
+     - `brand_name` 示例 → `你的品牌名`（不能是实际公众号名）
+     - AGENTS.md 命名约定示例 → `品牌名=AI 名`（不能是实际 `大姚=AI 名`）
+     - Phase 0 交付汇总表 → `| brand_name | 你的品牌名 | AGENTS.md |`
+     - 配图模板变量示例 → `| 你的品牌名 |`（不能是实际品牌名）
+   - **只有两处可以保留作者名**：SKILL.md frontmatter 的 `author:` + `LICENSE` 的 Copyright。
+   - **坑**：示例写的时候随手用自己的品牌名最自然，但公开仓库里等于给每个新用户看到你的公众号名。
+   - 发布前必须全文扫描：`grep -rn '你的实际品牌名' SKILL.md references/ scripts/`
+
 ## Verification commands
 
 Run from the skill root:

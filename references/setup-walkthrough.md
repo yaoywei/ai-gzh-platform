@@ -12,7 +12,7 @@
 
 并行读：
 - `~/.hermes/USER.md`（用户画像）
-- `~/.hermes/AGENTS.md`（命名约定，如"大姚=AI 名"）
+- `~/.hermes/AGENTS.md`（命名约定，如"品牌名=AI 名"）
 - 当前会话的 USER PROFILE 注入（系统提示里的「用户偏好」段）
 - skill 自带的 `config.example.json`
 
@@ -24,7 +24,7 @@
 
 | 字段 | 来源 | 依据 |
 |------|------|------|
-| `brand_name` | AGENTS.md "大姚=AI 名" | 命名约定直接给 |
+| `brand_name` | AGENTS.md "品牌名=AI 名" | 命名约定直接给 |
 | `content_directions` | USER PROFILE 主线 | "AI 企业应用"主线 + 副线 |
 | `target_audience` | example.json 已含 | example 写得够准就复用，不重写 |
 | `html_template.style_name` | USER PROFILE 配色偏好 | example 默认值通常可用 |
@@ -126,12 +126,12 @@ OPENAI_BASE_URL=https://api.zhongzhuan.chat/v1
 ```python
 # Step 1: 读 USER PROFILE（系统注入）+ AGENTS.md + example.json
 USER_PROFILE  # 含主线 + 偏好
-AGENTS = read('~/.hermes/AGENTS.md')  # 含"大姚=AI 名"
+AGENTS = read('~/.hermes/AGENTS.md')  # 含"品牌名=AI 名"
 example = json.loads(read(skill_dir + '/config.example.json'))
 
 # Step 2: 已知字段直接填
 config = {
-    "brand_name": "大姚AI提效",  # 来自 AGENTS
+    "brand_name": "你的品牌名",  # 来自 AGENTS
     "content_directions": ["AI企业应用", "AI职场提效", "AI商业化变现"],  # 来自 USER 主线
     "target_audience": example['target_audience'],  # 复用 example
     "html_template": {"style_name": "科技蓝", "primary_color": "#2563EB", ...},
@@ -161,7 +161,7 @@ config = {
 >
 > | 项 | 我选的 | 依据 |
 > |---|---|---|
-> | brand_name | 大姚AI提效 | AGENTS.md "大姚=AI 名" |
+> | brand_name | 你的品牌名 | AGENTS.md "品牌名=AI 名" |
 > | ... | ... | ... |
 >
 > ## 还需要你给的（X 项，全部为安全链路，不在聊天回显）

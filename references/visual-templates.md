@@ -47,7 +47,7 @@ Notion-like editorial knowledge card, 轻松圆润字体版,
 |------|------|------|
 | `{标题}` | 文章标题，完整填入 | 干了三年的基础岗，公司不招了 |
 | `{模块标签列表}` | 2-4个核心步骤/要点，用→连接 | 初级岗消失→重新定价→转型路径 |
-| `{brand_name}` | 品牌名，从config.json读取 | 大姚AI提效 |
+| `{brand_name}` | 品牌名，从config.json读取 | 你的品牌名 |
 | `{brand_tag_position}` | 品牌标签位置 | 右下角 |
 
 ### 模块标签提炼规则
