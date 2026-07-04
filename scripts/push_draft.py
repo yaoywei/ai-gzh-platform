@@ -56,6 +56,75 @@ def upload_material(access_token, file_path):
     return json.loads(r.stdout)
 
 
+# ============================================================
+# 推后验证（从 wechat-official-account skill 搬运）
+# ============================================================
+
+def verify_draft(media_id, access_token):
+    """推后验证：拉回草稿检查中文内容是否正常。200 OK 不代表成功。"""
+    import urllib.request
+
+    body = json.dumps({"media_id": media_id}, ensure_ascii=False).encode("utf-8")
+    url = f"{PROXY}/cgi-bin/draft/get?access_token={access_token}"
+    req = urllib.request.Request(
+        url, data=body,
+        headers={"x-publish-token": AUTH_TOKEN,
+                 "Content-Type": "application/json; charset=utf-8"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=15) as r:
+            data = json.loads(r.read())
+    except Exception as e:
+        return {"ok": False, "reason": f"fetch failed: {e}"}
+
+    items = data.get("news_item", [])
+    if not items:
+        return {"ok": False, "reason": "no news_item in response", "raw": data}
+
+    content = items[0].get("content", "")
+    title = items[0].get("title", "")
+    chinese = len(re.findall(r'[\u4e00-\u9fff]', content))
+    has_escape = "\\u" in content
+    has_double_utf8 = "æ" in content and "è" in content
+    mmbiz_count = content.count("mmbiz.qpic.cn")
+
+    result = {
+        "ok": chinese > 1000 and not has_escape and not has_double_utf8 and mmbiz_count >= 1,
+        "title": title,
+        "chinese_chars": chinese,
+        "has_unicode_escape": has_escape,
+        "has_double_utf8": has_double_utf8,
+        "mmbiz_image_count": mmbiz_count,
+        "content_length": len(content),
+    }
+
+    # 诊断：区分 Bug #1 vs Bug #2
+    if has_escape:
+        result["diagnosis"] = "Bug#1: ensure_ascii陷阱——客户端json.dumps用了ensure_ascii=True"
+    elif has_double_utf8:
+        result["diagnosis"] = "Bug#2: 双重UTF-8——服务端IP路径bug，需通过wx-proxy推送"
+
+    return result
+
+
+def delete_draft(media_id, access_token):
+    """删除草稿（验出问题后清理，修bug重推）"""
+    body = json.dumps({"media_id": media_id}, ensure_ascii=False).encode("utf-8")
+    url = f"{PROXY}/cgi-bin/draft/delete?access_token={access_token}"
+    req = urllib.request.Request(
+        url, data=body,
+        headers={"x-publish-token": AUTH_TOKEN,
+                 "Content-Type": "application/json; charset=utf-8"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=15) as r:
+            return json.loads(r.read())
+    except Exception as e:
+        return {"error": str(e)}
+
+
 def push_draft(title, author, digest, html_path, cover_path, img_paths):
     """推送草稿到公众号"""
     # 1. 获取token
@@ -132,10 +201,27 @@ def push_draft(title, author, digest, html_path, cover_path, img_paths):
     }
 
     draft_resp = api_call(f"/cgi-bin/draft/add?access_token={at}", data=article_data, method="POST")
-    if "media_id" in draft_resp:
-        print(f"草稿创建成功！media_id: {draft_resp['media_id']}")
+    if "media_id" not in draft_resp:
+        print(f"❌ 草稿创建失败: {draft_resp}"); sys.exit(1)
+
+    media_id = draft_resp["media_id"]
+    print(f"✅ 草稿创建成功 media_id: {media_id}")
+
+    # 6. 推后验证（200 OK 不代表成功，必须拉回来验）
+    print("6. 推后验证...")
+    vr = verify_draft(media_id, at)
+    if vr["ok"]:
+        print(f"  ✅ 验证通过：中文字符={vr['chinese_chars']}, 图片={vr['mmbiz_image_count']}, 内容长度={vr['content_length']}")
+        print(f"  media_id: {media_id}")
     else:
-        print(f"草稿创建失败: {draft_resp}"); sys.exit(1)
+        print(f"  ❌ 验证失败：{vr}")
+        if "diagnosis" in vr:
+            print(f"  诊断：{vr['diagnosis']}")
+        # 删掉坏草稿
+        del_resp = delete_draft(media_id, at)
+        print(f"  已删除坏草稿: {del_resp}")
+        print("  请修复问题后重推。详见 wechat-official-account skill。")
+        sys.exit(1)
 
 
 if __name__ == "__main__":

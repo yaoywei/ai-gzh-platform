@@ -268,10 +268,11 @@
 254|      飞书doc分两步写入（POST /documents → POST /blocks/{id}/children），按30/batch分批。
 255|      顺序约束：飞书doc必须在HTML之前创建（CTA链接嵌入doc_id）。
 256|      详见 references/push-draft-pitfalls.md 坑5-6
-257|- [ ] Step 12: 推草稿到公众号（可选，wechat_proxy.enabled=true时）
-258|      预处理3步：compress_images.py → HTML不嵌cover → check_title_digest.py
-259|      python3 scripts/push_draft.py --title "标题" --digest "摘要" --html 推草稿版.html --cover cover.jpg --images imgs/*.jpg
-260|      推完必跑验证：拉draft/get确认中文字符>1000且\u=0。详见 references/push-draft-pitfalls.md
+- [ ] Step 12: 推草稿到公众号（可选，wechat_proxy.enabled=true时）
+      传输层详见 `wechat-official-account` skill（两个静默损坏bug + wx-proxy部署 + 错误码表）。
+      预处理3步：compress_images.py → HTML不嵌cover → check_title_digest.py
+      python3 scripts/push_draft.py --title "标题" --digest "摘要" --html 推草稿版.html --cover cover.jpg --images imgs/*.jpg
+      推完自动验证：拉draft/get确认中文字符>1000且\u=0。失败自动删草稿+诊断Bug#1/Bug#2。
 261|- [ ] Step 13: 交付通知
 262|      推送全部产出物：article.md + HTML×2 + 配图 + 资料包链接 + CTA关键词。
 263|      更新 state.json: {"step":13,"pushed":true}
