@@ -44,3 +44,33 @@
 
 - **症状**：markdown 表格里的 `|---|---|---|` 分隔行渲染出空白格。
 - **修法**：渲染前过滤 `all(set(c)<=set("-: ") for c in row)` 的行。
+
+## 9. 5 张图 base64 内嵌触顶飞书消息体（实测 2026-07-06）
+
+- **症状**：4 张 1792x1024 图 base64 内嵌约 1.5MB 没问题；**5 张（封面+4 Step）涨到 7.96MB**。send_message 走 IM 通道，**单条消息体上限 4MB**，HTML 发不出去，用户收不到。
+- **根因**：双 HTML 模式（`references/two-html-pattern.md`）的"微信粘贴版（b64 内嵌）"假设是 4 张图，没考虑 5+ 张图场景。
+- **修法**：
+  1. **5+ 张图版本**必须走 `python3 ~/.agents/skills/feishu-send-attachment/scripts/send_file.py --file <html> --chat-id <id>`，**msg_type=file** 通道（上限 10MB）能发。
+  2. 或降级：5 张图 → JPG 压缩后 base64 内嵌（cover 200KB + 4 张 400KB ≈ 1.8MB，OK）。
+  3. 或拆：4 张图 base64 + 第 5 张用相对路径（但本机双击 HTML 看不到第 5 张）。
+- **自检**：写完 HTML 跑 `wc -c <file>.html` 看大小，> 4MB → 走 send_file 通道。
+
+## 10. `for` 循环多图生成被 SIGTERM -15 一次性 kill
+
+- **症状**：3 张图塞进一个 `for i in 01 02 03; do python3 generate_image.py ...; done`，外层 shell 进程被 SIGTERM 后，**3 张全部丢失**，没有进度残留。
+- **根因**：单 shell 进程串行跑多张图，任何一张超时或父进程被 OOM kill，所有 in-flight 的图片 API 调用都断。
+- **修法**：
+  1. **每张图独立 background 跑**（`background=true, notify_on_complete=true`），3 张图 3 个独立 session_id，每张完成/失败单独通知。
+  2. 或 `nohup python3 ... &` 写日志文件 `output/<date>/imgs/01.log`，中断后从日志恢复已完成的图。
+  3. 永远不要把 3+ 张图塞进一个 for 循环 + 一次性 `wait`。
+- **教训**：2026-07-06 一次 for 循环跑 3 张 Step 图，外层被 SIGTERM -15 杀，3 张图全部 0 字节。
+
+## 11. `execute_code` 沙盒无状态（NameError 反复）
+
+- **症状**：第一次 `execute_code` 里 import 了 `from hermes_tools import web_search` 调成功；第二次 `execute_code` 又调 `web_search(...)`，报 `NameError: name 'web_search' is not defined`。
+- **根因**：`execute_code` 每次都跑在**新 Python 进程**，所有 import 和变量不保留。Pitfall #2 已记录"读不到 env"，但更广的"状态不保留"问题没记。
+- **修法**：
+  1. **多步逻辑合并到一次 execute_code**：一次脚本里跑完 5 步转换，不要拆 5 次。
+  2. 跨 turn 持久化用 `write_file` 落盘。
+  3. 跨 turn 状态读取用 `read_file`。
+  4. `import` 永远放脚本最顶端（不是中段），避免后续步骤假设已 import。

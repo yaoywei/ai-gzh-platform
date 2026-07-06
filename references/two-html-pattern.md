@@ -25,6 +25,49 @@
 - 微信粘贴版（b64 内嵌）：927KB
 - 推草稿版（相对路径）：22KB
 
+来自 **2026-07-06 公众号接 AI 教程**（5 张图版本，触顶飞书通道）：
+
+- 5 张 GPT Image 2 PNG 总大小：6.0MB（1792×1024 封面 1.4MB + 4 张 1792×1024 Step 图各 1.1-1.3MB）
+- PNG → JPG 压缩后：~750KB
+- 微信粘贴版（**b64 内嵌**）：**7.96MB** ⚠️ 超 IM 消息体 4MB 上限
+- 推草稿版（相对路径）：22KB
+- **结论**：5 张图版本必须走 `feishu-send-attachment` 文件通道，不能 send_message
+
+## 5 张图边界（飞书发送通道对照）
+
+| 飞书发送通道 | 上限 | 微信粘贴版大小 | 5 张图版本 |
+|---|---|---|---|
+| `send_message`（IM 通道）| 4MB | ≤ 4 张图 base64 ≈ 1.5MB ✅ | 7.96MB ❌ **必失败** |
+| `feishu-send-attachment`（文件通道）| 10MB | 都 OK | 7.96MB ✅ |
+| 邮件附件 | 25MB（飞书邮箱）/ 50MB（QQ 邮箱）| 都 OK | OK |
+
+**修法**（按 5 张图版本走）：
+
+```bash
+# 1. 生成 5 张图（每张独立 background 跑，避免 SIGTERM-batch-kill）
+# 见 live-failures.md f10
+python3 ~/.agents/skills/feishu-send-attachment/scripts/send_file.py \
+  --file output/<date>-<slug>/html/<slug>-微信粘贴版-v1.html \
+  --chat-id <oc_xxx>
+# 退出码 0 + message_id = 成功
+```
+
+**降级方案**（不想走文件通道）：
+
+- 5 张图 → JPG 压缩 + base64 ≈ 1.8MB，仍在 IM 通道 4MB 内
+- 5 张图 → 4 张内嵌 + 第 5 张相对路径（但本机打开 HTML 看不到第 5 张）
+
+**自检脚本**（写完 HTML 必跑）：
+
+```python
+import os
+size_mb = os.path.getsize("output/.../html/微信粘贴版-v1.html") / 1024 / 1024
+if size_mb > 4:
+    print(f"⚠️ {size_mb:.2f}MB > 4MB IM 通道上限，必须走 send_file 通道")
+else:
+    print(f"✅ {size_mb:.2f}MB，IM 通道可发")
+```
+
 ## 实现骨架
 
 ### 1. 生成 4 张图后立即压缩

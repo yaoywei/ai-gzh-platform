@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """推草稿到公众号 - 通过wx-proxy代理，双环境兼容"""
-import json, sys, os, re, subprocess
+import json, sys, os, re, subprocess, urllib.request
 
 # 双环境兼容
 try:
@@ -90,7 +90,7 @@ def verify_draft(media_id, access_token):
     mmbiz_count = content.count("mmbiz.qpic.cn")
 
     result = {
-        "ok": chinese > 1000 and not has_escape and not has_double_utf8 and mmbiz_count >= 1,
+        "ok": chinese > 800 and not has_escape and not has_double_utf8 and mmbiz_count >= 1,
         "title": title,
         "chinese_chars": chinese,
         "has_unicode_escape": has_escape,

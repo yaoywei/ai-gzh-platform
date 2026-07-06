@@ -285,3 +285,193 @@ curl -s "http://$WX_PROXY_SERVER:8787/health"
 ```
 
 **⚠️ 关键**：`source .env` 只是读取变量到当前 shell，Python 子进程拿不到。必须 `export` 才能传给子进程。
+
+---
+
+## 坑 10：推草稿版 HTML 不能用 `<style>` 块 / `class=""` / `data-src`（2026-07-06 实测）
+
+**复现条件**：直接复用 `md_to_html.py` 产出的浏览器版 HTML（含 `<style>` 块 + class=""），或自己写时图省事加了 `<style>` 块。
+
+**症状**：草稿创建成功（media_id 返回正常），但草稿箱编辑器里：
+- 虚线占位框（`<div class="sshot">`）→ **变成普通段落**（无边框/无背景）
+- 微信号 CTA 块（`<span class="wechat-id">`）→ **变成 inline 普通文字**（无蓝色边框/无背景）
+- 图片 `<img data-src="...">` → **图片不显示**（微信只认 `src`，不认 `data-src`）
+- 表格 → 偶发丢边线/背景
+
+**根因**：微信草稿箱是**所见即所得结构化编辑器**，不是 HTML 浏览器。粘贴/推入时它会：
+1. 过滤掉整个 `<style>...</style>` 块
+2. 丢所有 `class=""` / `id=""`（编辑器只关心内联 style）
+3. 丢 `data-src`（只认 `src`）
+4. 部分 `<div>` 嵌套被拆掉重排
+
+**修法**（推草稿版必须满足 4 条规则）：
+
+1. **全内联样式**：每个元素自己写 `style="color: #2563EB; font-size: 16px; ..."`
+2. **无 `<style>` 块**：head 里的 `<style>` 全部移到 body style 或每个元素 style
+3. **无 `class=""` / `id=""`**：用纯结构化标签 + style
+4. **`src` 不能用 `data-src`**：直接 `<img src="...">`
+
+**对照表**：
+
+| 元素 | 浏览器版（粘贴版 OK）| 推草稿版（必须）|
+|---|---|---|
+| 样式位置 | `<style>` 块 + class | 每个元素 `style="..."` |
+| 虚线占位 | `<div class="sshot">` | `<p style="border: 2px dashed #f59e0b; ...">` |
+| 微信号块 | `<span class="wechat-id">` | `<p style="background: #f0f7ff; border: 2px solid #2563EB; ...">` |
+| 图片 | `<img data-src="...">` | `<img src="...">` |
+| 表格 | `<table><thead><tbody>` | `<table>` 扁平，th/td 各自 style |
+
+**修法代码骨架**（最小可工作的 wechat-native HTML 生成器）：
+
+```python
+def md_to_wechat_native(md: str) -> str:
+    """Markdown → 微信原生 HTML（行内 style + 微信支持的标签）"""
+    # 1. 把所有 [SCREENSHOT: ...] / [AI-IMG: ...] / [USER-IMG: ...] 转成 inline style 块
+    # 2. 标题/段落/列表/引用/表格：每个元素自带完整 style
+    # 3. 图片：<img src="imgs/jpg/xx.jpg" style="display: block; width: 100%; ..."
+    # 4. 微信号块：<p style="background: #f0f7ff; border: 2px solid #2563EB; ...">
+    pass  # 完整实现在 references/wechat-native-html-template.md
+```
+
+**验证方法**（推完必跑）：
+
+```python
+content = open("推草稿版.html").read()
+checks = {
+    "无 <style>": "<style" not in content,
+    "无 class=": 'class="' not in content,
+    "无 data-src": "data-src" not in content,
+    "有 src=imgs/": 'src="imgs/' in content,  # 相对路径（push_draft.py 会替换）
+}
+for k, v in checks.items():
+    print(f"  {'✅' if v else '❌'} {k}")
+```
+
+**反例**（直接复用浏览器版 HTML 推草稿的后果）：
+
+```html
+<!-- 浏览器版：粘贴到公众号 OK -->
+<head><style>.sshot{border:2px dashed orange}</style></head>
+<body><div class="sshot">...</div><img data-src="x.jpg"></body>
+```
+
+推草稿后 → 草稿箱显示：橙色边框丢 + 图片不显示 + 排版散架。**用户质问"为什么推草稿版比粘贴版丑"**——这就是原因。
+
+**详见**：`references/wechat-native-html-template.md`（完整 transform 代码 + tech-blue 配色 inline 模板）。
+
+---
+
+## 坑 11：`push_draft.py` 缺 `import urllib.request`（2026-07-06 实测）
+
+**复现条件**：脚本顶部 `import` 列表没加 `urllib.request`。
+
+**症状**：推后验真失败时调 `delete_draft(media_id, at)` 抛 `NameError: name 'urllib' is not defined`，**坏草稿留在草稿箱**（因为删除逻辑崩了，没删成）。
+
+**修法**：`scripts/push_draft.py` L4 改为：
+
+```python
+import json, sys, os, re, subprocess, urllib.request
+```
+
+**验证**：推一次故意带 bug 的 HTML → 验真失败 → 脚本不抛 NameError → 坏草稿被删 → 草稿箱看不到遗留。
+
+---
+
+## 坑 12：验真阈值 `chinese > 1000` 误杀（2026-07-06 实测）
+
+**复现条件**：`verify_draft` 里硬编码 `chinese > 1000`。
+
+**症状**：5 张图 + 1800+ 字正文，推完后 `draft/get` 拉回的 content 因为含 `<strong>` `<code>` 等 HTML 标签包裹，正则 `[\u4e00-\u9fff]` 算下来只有 982 < 1000，**触发删草稿逻辑**（但即使触发也可能因为坑 11 删不掉）。
+
+**修法**：`scripts/push_draft.py` L90 改为：
+
+```python
+"ok": chinese > 800 and not has_escape and not has_double_utf8 and mmbiz_count >= 1,
+```
+
+阈值降到 800（保留安全垫，5 张图 + 1500 字正文一般 ≥ 1200）。
+
+---
+
+## 坑 13：推草稿版 HTML 不能用 `<ul>/<ol>/<li>` 和 `<thead>/<tbody>` 嵌套（2026-07-06 手机端实测）
+
+**复现条件**：推草稿版 HTML 里写了 `<ul><li>...</li><li>...</li></ul>` 或 `<ol><li>...</li></ol>`。
+
+**症状**（手机端公众号后台预览）：
+- 每个真实列表项之间**多一个孤立空 `●`**（微信会自动在 `<li>` 之间插入空 `<li>`）
+- 4 个列表项 → 渲染成 "1 个有效项 + 1 个空点 + 1 个有效项 + 1 个空点 ……" 的交替结构
+- 同样问题：`<thead>/<tbody>` 嵌套会让表格**错乱或挤压**
+
+**根因**：微信编辑器对 HTML 列表/表格有自己的标准化处理，**会忽略或重排用户写的 list 结构**。
+
+**修法**（必做）：
+
+```html
+<!-- ❌ 错（用 ul/ol/li）-->
+<ul>
+  <li>选题：让 AI 拉爆款库</li>
+  <li>写稿：喂历史文 5 分钟出初稿</li>
+</ul>
+
+<!-- ✅ 对（用 p + ● 字符 + position absolute）-->
+<p style="margin: 6px 0; padding: 2px 0 2px 20px; position: relative; line-height: 2;">
+  <span style="position: absolute; left: 0; color: #F97316; font-weight: 700;">●</span>
+  选题：让 AI 拉爆款库
+</p>
+<p style="margin: 6px 0; padding: 2px 0 2px 20px; position: relative; line-height: 2;">
+  <span style="position: absolute; left: 0; color: #F97316; font-weight: 700;">●</span>
+  写稿：喂历史文 5 分钟出初稿
+</p>
+
+<!-- 数字列表同样处理 -->
+<p style="margin: 6px 0; padding: 2px 0 2px 28px; position: relative; line-height: 2;">
+  <span style="position: absolute; left: 0; color: #2563EB; font-weight: 700;">1.</span>
+  把最近 30 篇 10W+ 文章打包 PDF
+</p>
+
+<!-- 表格改"卡片化" -->
+<p style="font-size: 15px; font-weight: 600; margin: 16px 0 6px;">━━━ 环节 | 人工 | AI 化 ━━━</p>
+<p style="margin: 4px 0; padding: 8px 12px; background-color: #fafafa; border-left: 3px solid #2563EB; font-size: 15px; line-height: 1.7;">选题 | 刷竞品 | AI 拉爆款库</p>
+```
+
+**完整模板**：见 `references/wechat-native-html-template.md` 的"关键反例"节。
+
+**验证**：
+
+```bash
+python3 -c "
+content = open('output/<date>-<slug>/html/<slug>-推草稿版-v1.html').read()
+checks = {
+    '无 <style>': '<style' not in content,
+    '无 class=': 'class=\"' not in content,
+    '无 data-src': 'data-src' not in content,
+    '无 <ul>': '<ul' not in content,
+    '无 <ol>': '<ol' not in content,
+    '无 <li>': '<li' not in content,
+    '无 <thead>': '<thead' not in content,
+    '无 <tbody>': '<tbody' not in content,
+    '有 ● 列表': '●' in content,
+}
+for k, v in checks.items():
+    print(f\"  {'✅' if v else '❌'} {k}\")
+"
+```
+
+**字号规范**（手机端 14-15px 偏小，16-17px 才舒服）：
+
+| 元素 | 推荐尺寸 | 行高 |
+|---|---|---|
+| H1 | 22-24px | 1.5 |
+| H2 | 19-20px | 1.5 |
+| H3 | 17-18px | 1.5 |
+| 正文 | 16-17px | 2.0（不要 1.75）|
+| 列表项 | 16px | 2.0 |
+| 引用块 | 15-16px | 1.8 |
+
+---
+
+## 关联
+
+- 微信原生 HTML 模板：`references/wechat-native-html-template.md`
+- 双 HTML 模式总览：`references/two-html-pattern.md`
+- 推草稿脚本：`scripts/push_draft.py`（已修：L4 import urllib + L90 阈值 800）
