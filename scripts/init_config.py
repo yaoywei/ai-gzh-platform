@@ -1,112 +1,148 @@
 #!/usr/bin/env python3
-"""Interactive first-run configurator for ai-gzh-platform.
-
-Creates config.json from config.example.json and forces the user to choose
-brand, audience, HTML style, image style, and optional capabilities before the
-skill generates any article.
 """
-from __future__ import annotations
+交互式配置向导：引导用户填写 config.json 的关键字段。
+
+用法：
+  python3 init_config.py
+  python3 init_config.py --non-interactive  # 仅检查，不修改
+"""
 
 import json
+import os
+import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-EXAMPLE = ROOT / "config.example.json"
-CONFIG = ROOT / "config.json"
+CONFIG_PATH = Path(__file__).parent.parent / "config.json"
+EXAMPLE_PATH = Path(__file__).parent.parent / "config.example.json"
 
 
-def ask(prompt: str, default: str = "") -> str:
-    suffix = f" [{default}]" if default else ""
-    value = input(f"{prompt}{suffix}: ").strip()
-    return value or default
+def load_config() -> dict:
+    if CONFIG_PATH.exists():
+        with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    elif EXAMPLE_PATH.exists():
+        with open(EXAMPLE_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    else:
+        print("❌ config.example.json 不存在！", file=sys.stderr)
+        sys.exit(1)
 
 
-def ask_list(prompt: str, default: list[str]) -> list[str]:
-    raw = ask(prompt, "、".join(default))
-    items = [x.strip() for x in raw.replace(",", "、").split("、") if x.strip()]
-    return items or default
+def save_config(cfg: dict):
+    with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+        json.dump(cfg, f, ensure_ascii=False, indent=2)
+    print(f"\n✅ 已保存到 {CONFIG_PATH}")
 
 
-def choose(title: str, options: list[dict], default_id: str) -> dict:
-    print(f"\n{title}")
-    by_id = {o["id"]: o for o in options}
-    for i, opt in enumerate(options, 1):
-        mark = "（推荐）" if opt.get("recommended") else ""
-        print(f"  {i}. {opt['id']} / {opt['name']} {mark} - {opt.get('best_for', '')}")
-    while True:
-        raw = ask("请输入编号或id", default_id)
-        if raw.isdigit():
-            idx = int(raw) - 1
-            if 0 <= idx < len(options):
-                return options[idx]
-        if raw in by_id:
-            return by_id[raw]
-        print("输入无效，请重新选择。")
+def ask(prompt, default="", choices=None):
+    """交互式输入，支持默认值和选项"""
+    if choices:
+        print(f"\n{prompt}")
+        for i, c in enumerate(choices, 1):
+            print(f"  {i}. {c}")
+        while True:
+            raw = input(f"选择 (1-{len(choices)}) [{default}]: ").strip()
+            if not raw:
+                return default
+            try:
+                idx = int(raw) - 1
+                if 0 <= idx < len(choices):
+                    return choices[idx]
+            except ValueError:
+                if raw in choices:
+                    return raw
+            print(f"  无效选择，请输入 1-{len(choices)}")
+    else:
+        raw = input(f"{prompt} [{default}]: ").strip()
+        return raw if raw else default
 
 
-def yes_no(prompt: str, default: bool = False) -> bool:
-    default_text = "y" if default else "n"
-    raw = ask(prompt + " (y/n)", default_text).lower()
-    return raw in {"y", "yes", "是", "启用", "true", "1"}
+def main():
+    print("╔══════════════════════════════════════════╗")
+    print("║  AI公众号内容生产平台 · 配置向导         ║")
+    print("╚══════════════════════════════════════════╝")
 
+    cfg = load_config()
 
-def main() -> None:
-    if not EXAMPLE.exists():
-        raise SystemExit(f"Missing template: {EXAMPLE}")
-    cfg = json.loads(EXAMPLE.read_text(encoding="utf-8"))
-    fq = cfg.get("first_run_questions", {})
+    if "--non-interactive" in sys.argv:
+        print("\n当前配置：")
+        print(json.dumps(cfg, ensure_ascii=False, indent=2))
+        return
 
-    print("AI公众号内容平台 · 首次配置向导")
-    print("不会收集真实 API Key；这里只写环境变量名和启用开关。")
-
-    cfg["brand_name"] = ask("公众号/品牌名", cfg.get("brand_name", "你的公众号品牌"))
-    cfg["content_directions"] = ask_list(
-        "内容方向（用顿号或逗号分隔，建议2-4个）",
-        cfg.get("content_directions", ["AI提效", "行业观察", "工具教程"]),
+    # 品牌名
+    brand = cfg.get("brand", {})
+    brand_name = ask(
+        "公众号/品牌名称",
+        default=brand.get("brand_name", ""),
     )
-    target = cfg.setdefault("target_audience", {})
-    target["P1"] = ask("P1核心读者画像", target.get("P1", ""))
-    target["P2"] = ask("P2核心读者画像", target.get("P2", ""))
-    target["P3"] = ask("P3核心读者画像", target.get("P3", ""))
+    brand["brand_name"] = brand_name
 
-    html_opt = choose(
-        "选择HTML排版风格（10选1）",
-        fq.get("html_template_options", []),
-        cfg.get("html_template", {}).get("style_name", "tech-blue"),
-    )
-    cfg["html_template"] = {
-        "style_name": html_opt["id"],
-        "primary_color": html_opt.get("colors", {}).get("primary", "#2563EB"),
-        "accent_color": html_opt.get("colors", {}).get("accent", "#F97316"),
-        "background_color": html_opt.get("colors", {}).get("background", "#FFFFFF"),
-    }
+    # 排版风格
+    styles = cfg.get("html_styles", {})
+    style_names = [f"{v['name']} ({k}) — {v.get('best_for', '')}" for k, v in styles.items()]
+    style_keys = list(styles.keys())
+    current_style = cfg.get("html_template", {}).get("style_name", "kunpeng-blue")
+    print(f"\n当前排版风格: {current_style}")
+    change = ask("是否更换排版风格?", default="n", choices=["y", "n"])
+    if change == "y":
+        for i, (k, v) in enumerate(styles.items(), 1):
+            print(f"  {i}. {v['name']} ({k}) — {v.get('best_for', '')}")
+        while True:
+            raw = input(f"选择 (1-{len(styles)}) [{current_style}]: ").strip()
+            if not raw:
+                break
+            try:
+                idx = int(raw) - 1
+                if 0 <= idx < len(style_keys):
+                    current_style = style_keys[idx]
+                    break
+            except ValueError:
+                if raw in style_keys:
+                    current_style = raw
+                    break
+            print(f"  无效选择，请输入 1-{len(styles)}")
+    cfg.setdefault("html_template", {})["style_name"] = current_style
 
-    image_opt = choose(
-        "选择配图风格（6选1）",
-        fq.get("image_style_options", []),
-        cfg.get("image_style", {}).get("name", "baoyu-notion"),
-    )
-    cfg["image_style"] = {
-        "name": image_opt["id"],
-        "style_prompt_prefix": "",
-    }
-    if image_opt["id"] == "custom":
-        cfg["image_style"]["style_prompt_prefix"] = ask("自定义配图prompt前缀", "")
+    # 飞书配置
+    feishu = cfg.get("feishu", {})
+    print(f"\n飞书模块: {'已启用' if feishu.get('enabled') else '未启用'}")
+    enable_feishu = ask("是否启用飞书模块?", default="y" if feishu.get("enabled") else "n", choices=["y", "n"])
+    feishu["enabled"] = enable_feishu == "y"
+    if feishu["enabled"]:
+        feishu["base_token"] = ask("飞书 Base Token", default=feishu.get("base_token", ""))
+        feishu["table_topic"] = ask("选题配方表 Table ID", default=feishu.get("table_topic", ""))
+        feishu["table_source"] = ask("素材原子库 Table ID", default=feishu.get("table_source", ""))
+    cfg["feishu"] = feishu
 
-    cfg.setdefault("image_api", {})["enabled"] = yes_no("是否启用图片生成？启用前请先确认 endpoint/key 可用", False)
-    cfg.setdefault("feishu", {})["enabled"] = yes_no("是否启用飞书资料包？启用前请先确认飞书凭证可用", False)
-    cfg.setdefault("wechat_proxy", {})["enabled"] = yes_no("是否启用微信公众号推草稿？启用前请先确认代理/凭证可用", False)
+    # Image API
+    image_api = cfg.get("image_api", {})
+    print(f"\n图片 API: {'已启用' if image_api.get('enabled') else '未启用'}")
+    enable_img = ask("是否启用图片 API?", default="y" if image_api.get("enabled") else "n", choices=["y", "n"])
+    image_api["enabled"] = enable_img == "y"
+    if image_api["enabled"]:
+        image_api["endpoint"] = ask("API Endpoint", default=image_api.get("endpoint", "https://api.zhongzhuan.chat/v1/images/generations"))
+        image_api["key_env"] = ask("Key 环境变量名", default=image_api.get("key_env", "GPT_IMAGE2_API_KEY"))
+    cfg["image_api"] = image_api
 
+    # 微信代理
+    wechat = cfg.get("wechat_proxy", {})
+    print(f"\n微信代理: {'已启用' if wechat.get('enabled') else '未启用'}")
+    enable_wx = ask("是否启用微信代理（推草稿）?", default="y" if wechat.get("enabled") else "n", choices=["y", "n"])
+    wechat["enabled"] = enable_wx == "y"
+    if wechat["enabled"]:
+        wechat["server_ip"] = ask("代理服务器 IP", default=wechat.get("server_ip", ""))
+        wechat["proxy_port"] = int(ask("代理端口", default=str(wechat.get("proxy_port", 8787))))
+    cfg["wechat_proxy"] = wechat
+
+    # 标记配置完成
     cfg["setup_status"] = "configured"
-    cfg.pop("first_run_questions", None)
+    cfg["brand"] = brand
 
-    if CONFIG.exists():
-        overwrite = yes_no(f"{CONFIG.name} 已存在，是否覆盖？", False)
-        if not overwrite:
-            raise SystemExit("已取消，未覆盖现有 config.json。")
-    CONFIG.write_text(json.dumps(cfg, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(f"\n已写入 {CONFIG}")
-    print("下一步：把真实 API Key 写入环境变量/平台凭证；不要提交 config.json。")
+    save_config(cfg)
+
+    print("\n下一步：")
+    print("  1. 运行门禁:  python3 scripts/preflight.py")
+    print("  2. 开始写文章")
 
 
 if __name__ == "__main__":

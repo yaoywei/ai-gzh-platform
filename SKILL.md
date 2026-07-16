@@ -1,7 +1,7 @@
 ---
 name: ai-gzh-platform
-description: AI公众号内容生产全平台技能。一键安装完整的公众号内容生产系统，包含选题调研、爆款分析、内容撰写(n8n-blogger B端爆文为主，khazix-writer 备选)、四层自检、配图生成(GPT Image 2，支持6种风格含小姚手绘)、HTML排版、推草稿到公众号、飞书资料包创建。当用户说安装公众号平台、搭建公众号系统、装公众号技能、配置AI公众号内容平台、写公众号文章、按SOP写内容、生产今天的公众号内容、走内容流程、写篇推文时触发。
-version: 2.1.0
+description: AI公众号内容生产平台。一键安装完整的公众号内容生产系统，包含选题调研、爆款分析、内容撰写、归藏材质插画配图、base64内嵌HTML、推草稿到公众号、多平台分发。当用户说安装公众号平台、搭建公众号系统、写公众号文章、按SOP写内容、生产今天的公众号内容、走内容流程、写篇推文时触发。
+version: 4.0.0
 author: 大姚
 license: MIT
 platforms: [linux, macos, windows]
@@ -11,142 +11,43 @@ metadata:
     category: productivity
 ---
 
-# AI公众号内容平台
+# AI公众号内容生产平台 v4
 
-> 一键安装 → 自动生产，从选题到交付的公众号内容全闭环系统。兼容 Coze / Hermes / OpenClaw / 任意 Agent 平台。
+> Preflight → 00规则取料 → 08精选池选题 → 写作 → 归藏配图 → base64内嵌HTML → Postflight → 推草稿 → 发布队列同步
 
 ## When to Use
 
 触发：用户说"写公众号文章 / 用 ai-gzh-platform / 生产公众号内容 / 走内容流程 / 写篇推文"时。
 
-## 首次安装（Phase 0：Agent 驱动引导）
+## 首次安装
 
 如果 `config.json` 不存在或 `setup_status != "configured"`，**禁止直接生成文章**。
 
-照 baoyu 式 agent 驱动流程，不是丢给 CLI 脚本：
-
-### Phase 0a: 自动读取（30秒，不问用户）
-
-并行读取：
-- `~/.hermes/USER.md`（用户画像、主线方向、偏好）
-- `~/.hermes/AGENTS.md`（命名约定，如"品牌名=AI 名"）
-- 系统注入的 USER PROFILE 段
-- skill 自带 `config.example.json`
-- `~/.hermes/.env` 是否有 `FEISHU_APP_ID/SECRET`、`WX_APPID/APPSECRET`、`GPT_IMAGE2_API_KEY`
-
-产出：列出「已能确定的字段」vs「真正需要问用户的字段」。
-
-### Phase 0b: 自动填充（不问用户）
-
-能从画像读出来的直接填，不问：
-
-| 字段 | 来源 | 依据 |
-|---|---|---|
-| `brand_name` | AGENTS.md | "品牌名=AI 名" → `你的品牌名` |
-| `content_directions` | USER PROFILE 主线 | "AI 企业应用"主线 + 副线 |
-| `target_audience` | example.json 复用 | example 写得够准就复用 |
-| `html_template.style_name` | USER PROFILE 配色偏好 | 默认 `tech-blue`，USER.md 有明确偏好则覆盖 |
-| `image_style.name` | 检查 `assets/examples/` | 有小姚校准图 → `xiaoyao-illustrations`；没有 → `baoyu-notion` |
-| `feishu.enabled` | .env 是否有飞书凭证 | 有 → 准备启用；没有 → false |
-| `wechat_proxy.enabled` | .env 是否有微信凭证 | 有 → 准备启用；没有 → false |
-
-**禁忌**：
-- ❌ 把"我不知道"伪装成"默认"
-- ❌ 把"我猜的"说成"智能判断"
-- ✅ 不确定就标"待核验"
-
-### Phase 0c: 交互引导 ⚠️ REQUIRED
-
-只剩**用户才能真正决定**的问题才问。最多 3 轮，用 `clarify` 交互（不是 CLI input）：
-
-**优先级排序（从高到低，已有的跳过）：**
-
-1. **排版风格确认** — 如果 USER.md 无明确偏好：
-   - 用 clarify 给 4 个选项：`tech-blue(推荐/AI工具)` / `classic-blue(通用干货)` / `warm-orange(个人IP)` / `minimal-gray(严肃分析)`
-   - 其他 6 种风格 → 用户可选"其他"自行输入
-
-2. **配图风格确认** — 如果 assets/examples 为空：
-   - 用 clarify 给 3 个选项：`baoyu-notion(推荐/稳妥)` / `minimal-flat(扁平)` / `hand-drawn(手绘)`
-   - 小姚风格需要校准图 → 提示"需要安装 5 张校准图，是否安装？"
-
-3. **API 模块确认** — 如果 .env 有对应凭证：
-   - 用 clarify 问一次："检测到飞书/图片/微信凭证，是否启用对应模块？启用前会先实测验证。"
-   - 给选项：`全部启用(推荐)` / `仅文字链路(不开图/飞书)` / `仅写作+配图` / `逐个确认`
-
-4. **IP 形象定义** — 如果配图风格选了 `custom-ip`：
-   - 引导用户走 5 步 IP 定义流程（照 `references/ip-definition-guide.md`）
-   - 第 1 问（clarify）：角色性别+职业 → 给选项：`男/产品经理` / `女/程序员` / `男/设计师` / `其他`
-   - 第 2 问（clarify）：外形识别点 3-5 个 → "想想你的 IP 角色长什么样？给 3-5 个关键特征，比如'圆框眼镜+双麻花辫+柠檬黄衬衫'"
-   - 第 3 问（clarify）：主色调 → 给选项：`暖橙#F97316` / `柠檬黄` / `科技蓝` / `其他`
-   - 第 4 问（clarify）：性格关键词 3-5 个 → "你的 IP 是什么性格？比如'务实/强执行/幽默'或'温暖/细腻/有耐心'"
-   - 第 5 问：常用道具 3-5 个 → 自由输入
-   - agent 自动生成 `references/my-ip.md` + `references/my-ip-prompt.md`（照小姚格式）
-   - 用 image API 生成 5 张校准样图 → 存到 `assets/examples/`
-   - 后续 generate_image.py 的 prompt 自动拼接用户 IP 定义
-   - **详见**：`references/ip-definition-guide.md`
-
-**clarify 规则（照 baoyu）：**
-- 一次一个问题，最重要的先问
-- 用户不回答 → **不要静默替用户选默认**，报告默认值让用户看到
-- 能从画像读的直接填，不重复问
-- 密钥/Token 走安全链路，不在聊天回显
-
-### Phase 0d: 实测验证（启用前必做）
-
-填完**不要立刻** `enabled: true`。逐个验证：
-- 飞书 token：`POST /auth/v3/tenant_access_token/internal` → code==0
-- 图片 API：`POST /images/generations` → 200 + data 非空
-- 微信代理：`GET /health` → 200
-
-详见 `references/setup-walkthrough.md` 阶段 4。
-
-**决策树：**
-
-| 飞书 | 图片 | 微信 | 操作 |
-|---|---|---|---|
-| ✅ | ✅ | ✅ | 全开 |
-| ✅ | ✅ | ❌ | 开飞书+图片，微信不发 |
-| ✅ | ❌ | ❌ | 仅开飞书，文字链路先行 |
-| ❌ | ✅ | ❌ | 仅开图片，文字链路先行 |
-| ❌ | ❌ | ❌ | 全不开，纯文字链路 → Step 1-8 可跑，Step 9 跳过 |
-
-### Phase 0e: 交付汇总表
-
-配置完成后，给用户一个**可见的决策依据表**（不是"配好了"一句话）：
-
-```
-✅ config.json 已生成
-
-## 我替你选的（基于画像）
-| 项 | 值 | 依据 |
-|---|---|---|
-| brand_name | 你的品牌名 | AGENTS.md |
-| 排版风格 | tech-blue | 默认（USER.md 无偏好） |
-| 配图风格 | xiaoyao-illustrations | assets/examples 有校准图 |
-
-## 你确认的
-| 项 | 值 |
-|---|---|
-| API模块 | 图片+飞书启用，微信未开 |
-
-## 实测验证
-| 模块 | 状态 |
-|---|---|
-| 图片 API | ✅ 200 |
-| 飞书 token | ✅ code=0 |
-| 微信代理 | ⏭ 未启用 |
-
-## 立即可用
-写作 + 四层自检 + HTML排版 + 配图 + 飞书资料包 ✅
-推草稿到公众号 ⏭ 需后续配 wx-proxy
+```bash
+cd ~/.hermes/skills/ai-gzh-platform
+bash install.sh
 ```
 
-**详见**：`references/setup-walkthrough.md`（完整配置→注入→验证→决策树→回复模板）
+install.sh 自动完成：
+- pip install Pillow + requests
+- npm install -g lark-cli
+- git clone guizang-material-illustration + guizang-social-card-skill
+- 引导运行 `scripts/init_config.py`（交互式生成 config.json）
 
-### 排版风格（10选1）
+手动配置：
+```bash
+cp config.example.json config.json
+# 编辑 config.json 填入实际值
+python3 scripts/init_config.py  # 交互式向导
+```
+
+详见 `references/setup-walkthrough.md`
+
+## 排版风格（11选1，默认鲲鹏蓝）
 
 | id | 中文名 | 适合 |
 |---|---|---|
+| `kunpeng-blue` | **鲲鹏蓝（默认）** | 技术方案、行业分析、咨询感内容 |
 | `classic-blue` | 经典青蓝 | 通用干货、教程、知识卡片 |
 | `tech-blue` | 科技蓝 | AI、SaaS、企业服务、技术产品 |
 | `business-purple` | 商务紫 | 咨询、管理、B端解决方案 |
@@ -158,227 +59,402 @@ metadata:
 | `forest-green` | 森林绿 | 长期主义、组织管理、可持续增长 |
 | `milk-tea` | 奶茶棕 | 生活方式、副业、温和商业化 |
 
-### 配图风格（6选1）
+配置方式：`config.json` → `html_template.style_name`，颜色定义在 `html_styles` 段。
 
-| id | 中文名 | 适合 |
+## 配图风格
+
+**统一使用归藏材质插画**（guizang-material-illustration skill）。
+
+配图清单（最少4张）：
+
+| 配图 | 生成方式 | 说明 |
 |---|---|---|
-| `baoyu-notion` | Notion知识卡 | 稳妥通用；封面 + 2张信息图 |
-| `xiaoyao-illustrations` | 小姚手绘 | 原创IP人格化；封面 + 3-5张正文配图 |
-| `hand-drawn` | 手绘风格 | 轻松、陪伴感、低压教程 |
-| `minimal-flat` | 极简扁平 | SaaS、流程图、工具教程 |
-| `isometric-3d` | 等距3D | 系统架构、自动化平台、科技感展示 |
-| `custom` | 自定义prompt | 已有品牌视觉规范，需填写 `style_prompt_prefix` |
-| `custom-ip` | 自定义IP形象 | 引导用户定义自己的IP角色（照 `references/ip-definition-guide.md` 走 5 步流程） |
+| 封面素材 | GPT Image 2 直出 | 21:9 横版，公众号头条封面 |
+| 配图1 | GPT Image 2 + 归藏材质prompt | Pipeline/流程风格 |
+| 配图2 | GPT Image 2 + 归藏材质prompt | Chart/数据风格 |
+| 配图3 | GPT Image 2 + 归藏材质prompt | Before/After 对比 |
+| 配图4（可选） | GPT Image 2 + 归藏材质prompt | Layer Stack/门槛风格 |
 
-## 执行门禁
+**必须读取**：`guizang-material-illustration` skill 的 SKILL.md（配图 prompt 模板）。
 
-每次生产前必须读取并执行 `references/execution-gate.md`。门禁优先级高于本文件中的便捷兜底；配置、模型、API 实测、视觉 QA 任一项不通过，停止正式交付并报告阻塞，不得用占位产物冒充完成。
+**⚠️ 文件命名规范**：图片文件名必须包含中文关键词，否则 `build_html.py` 无法匹配嵌入。格式：`配图-<中文关键词>-<英文slug>.png`。
 
-## 文件结构
+## 生产流程（Harness 模式）
 
 ```
-skills/ai-gzh-platform/
-├── SKILL.md                        ← 本文件（路由索引 + workflow）
-├── config.example.json             ← 配置模板
-├── config.json                     ← 用户配置（首次安装后生成）
-├── references/
-│   ├── execution-gate.md           ← 强制门禁
-│   ├── setup-walkthrough.md        ← 首次配置工作流
-│   ├── writing-style.md            ← khazix-writer 写作风格
-│   ├── n8n-wechat-full-prompt.md   ← n8n 公众号生产完整提示词（Writer+Cleaner 两段式）
-│   ├── enterprise-windvane.md      ← AI企业应用风向标结构增强模式
-│   ├── ip-definition-guide.md      ← 自定义IP形象定义引导(5步流程)
-│   ├── visual-templates.md         ← 配图视觉模板(6种风格)
-│   ├── xiaoyao-ip.md               ← 小姚IP定义
-│   ├── style-dna.md                ← 小姚风格DNA
-│   ├── prompt-template.md          ← 小姚prompt模板
-│   ├── composition-patterns.md     ← 小姚构图模式
-│   ├── qa-checklist.md             ← 配图QA检查清单
-│   ├── two-html-pattern.md         ← 双HTML模式（微信粘贴版+推草稿版）
-│   ├── push-draft-pitfalls.md      ← 推草稿踩坑记录
-│   ├── push-draft-double-encoding-pitfall.md ← 双重UTF-8编码陷阱
-│   ├── live-failures.md            ← 常见 Live Failure 速查
-│   ├── n8n-integration-pitfalls.md ← n8n 工作流调试记录
-│   ├── local-fallback-html-pack.md  ← 本地降级 HTML 包
-│   ├── system-prompt.md            ← Agent System Prompt 参考
-│   ├── public-release-checklist.md  ← 公开仓库发布前隐私检查清单
-│   └── user-asset-ingestion.md     ← 用户素材盘点与分配（多轮对话收图后必走）
-├── scripts/
-│   ├── init_config.py              ← 首次配置向导
-│   ├── generate_image.py           ← GPT Image 2生成（含指数退避重试）
-│   ├── push_draft.py               ← 微信推草稿（必须走 wx-proxy）
-│   ├── compress_images.py            ← PNG→JPG 压缩
-│   ├── md_to_html.py                 ← Markdown → tech-blue HTML（含占位框/签名行）
-│   ├── compose_from_text.py          ← Pillow 双栏对比图：用户截图截断/模糊时，从源文字重排合成（Pitfall #30）
-│   ├── check_title_digest.py         ← 标题/摘要字节校验（≤30B/≤54B）
-│   └── wx-proxy.js                 ← 微信代理服务器
-└── assets/examples/                ← 小姚风格校准样图(5张)
+┌─────────────────────────────────────────────────┐
+│  Phase 0: Preflight（门禁检查）                   │
+│  python3 scripts/preflight.py                    │
+│  检查：config/GPT Image 2/飞书/工具依赖          │
+└────────────────────┬────────────────────────────┘
+                     ▼
+┌─────────────────────────────────────────────────┐
+│  Phase 1: 选题与调研                              │
+│  爆款调研 → 选题评分 → 风格路由                   │
+│  输出：research.md + state.json                   │
+└────────────────────┬────────────────────────────┘
+                     ▼
+┌─────────────────────────────────────────────────┐
+│  Phase 2: 内容撰写                                │
+│  读取：风格路由决策表 → 对应 writing style        │
+│  输出：article.md                                 │
+│  硬约束：≥2500字/≥2表格/≥3配图标记/禁用词0       │
+└────────────────────┬────────────────────────────┘
+                     ▼
+┌─────────────────────────────────────────────────┐
+│  Phase 3: 配图生成                                │
+│  归藏材质插画 + GPT Image 2                       │
+│  输出：imgs/*.png                                 │
+│  最少4张（封面+3张材质插画）                      │
+└────────────────────┬────────────────────────────┘
+                     ▼
+┌─────────────────────────────────────────────────┐
+│  Phase 4: HTML 生成                               │
+│  python3 scripts/build_html.py                    │
+│    --article article.md --imgs-dir imgs/          │
+│  输出：base64内嵌的完整HTML（一个文件搞定）       │
+└────────────────────┬────────────────────────────┘
+                     ▼
+┌─────────────────────────────────────────────────┐
+│  Phase 5: Postflight（验证）                      │
+│  python3 scripts/postflight.py --output-dir xxx   │
+│  检查：字数/禁用词/表格/配图/HTML/段落/峰值      │
+└────────────────────┬────────────────────────────┘
+                     ▼
+┌─────────────────────────────────────────────────┐
+│  Phase 6: 交付                                    │
+│  发送：HTML文件 + 封面图                          │
+│  输出：验收表                                     │
+└────────────────────┬────────────────────────────┘
+                     ▼
+┌─────────────────────────────────────────────────┐
+│  Phase 7（可选）: 推草稿到公众号                   │
+│  需 wechat_proxy.enabled=true                     │
+│  python3 scripts/push_draft.py ...                │
+└────────────────────┬────────────────────────────┘
+                     ▼
+┌─────────────────────────────────────────────────┐
+│  Phase 8（可选）: 多平台分发                       │
+│  需 aitoearn MCP                                  │
+│  加载 aitoearn-multisite skill                    │
+└─────────────────────────────────────────────────┘
 ```
 
-## 风格路由决策表
+## 飞书内容中台（16 表）
 
-只保留两种写作风格，简化路由：
+- **Base Token**: `TejybyBY0a4Q5bsOYmucwzVTnwf`
+- **Base URL**: https://pcnhyp285wrm.feishu.cn/base/TejybyBY0a4Q5bsOYmucwzVTnwf
+- **操作身份**: `--as bot`
+
+### 核心数据表（7 张）
+
+| 表名 | Table ID | 用途 |
+|---|---|---|
+| 00｜Hermes取料规则 | `tblGmclVtJWsrzUQ` | 取料条件/禁用条件/Hermes动作 |
+| 01｜外部资料库 | `tblKhjvH1gd12OHh` | 飞书文件夹 300+ 文件索引 |
+| 02｜流程拆解库 | `tbliBzDSxrXqNcFt` | 技术流程/工作流/部署步骤 |
+| 03｜问题与痛点库 | `tbluJ4dzXodscL8a` | 面试题/FAQ/用户痛点 |
+| 04｜观点反常识原子库 | `tblos5Xt14CM8phY` | 行业趋势/观点判断/方法论 |
+| 05｜改造方案库 | `tblk14J0YUVYWfEg` | 原方案→新方案的改造记录 |
+| 06｜实战案例库 | `tblMfktmt48QO3Ik` | 具体项目案例/落地实践 |
+| 07｜选题生产表 | `tblXdtaMSR96uhbb` | 选题排期/写作状态/发布跟踪 |
+
+### 生产流水线表（9 张）
+
+| 表名 | Table ID | 用途 |
+|---|---|---|
+| 08｜精选生产池 | `tbljsqpHs7l9N0Er` | 从原子中精选→生产文章的流水线 |
+| 09｜发布队列 | `tblXhlOuHFuBAGTF` | 文章排期发布管理 |
+| 10｜扩展采集入口 | `tbl5CfYGmX72pHc3` | 新发现的素材来源录入 |
+| 11｜源资料精洗索引 | `tblJC15jTqSpYaPb` | 源资料的清洗计划和状态 |
+| 12｜云盘删除验收表 | `tblGlyT6d4eyubR6` | 云盘文件删前验收确认 |
+| 13｜可独立取料原子库 | `tbl1bxlcfUJd5rXR` | Hermes 可直接使用的高质量原子 |
+| 14｜题材组合模板 | `tblYthCfyozMquPW` | 选题的组合配方和文章结构模板 |
+| 15｜视觉素材库 | `tbldAE1lDtns5SVs` | 图片/截图/视觉素材管理 |
+| 16｜跨平台适配表 | `tblzd6LInkRTC2oh` | 公众号→小红书/知乎/抖音等平台的适配内容管理 |
+
+### 数据流
+
+```
+素材库(01-06) ──拆解──→ 13可独立取料原子库
+                            ↓
+00取料规则 ──约束──→ assemble_atoms.py ←── 14题材模板
+                            ↓
+                    08精选生产池 ──同步──→ 09发布队列
+                            ↓
+                    写作 → 配图 → HTML → 推草稿
+                            ↓
+                    16跨平台适配表（小红书/知乎/抖音等）
+```
+
+## Phase 0: Preflight（门禁检查）
+
+每次执行前**必须**跑门禁：
+
+```bash
+source ~/.hermes/.env && export GPT_IMAGE2_API_KEY
+python3 scripts/preflight.py --check-atoms
+```
+
+门禁检查项（v4 新增 16 表检查）：
+1. config.json 核心字段（brand_name / style_name / setup_status）
+2. 飞书 16 表 table_id 全部已配置
+3. 飞书 Base 连通性
+4. GPT_IMAGE2_API_KEY 存在且有效
+5. 微信代理（可选，wechat_proxy.enabled 时检查）
+6. 工具依赖（Pillow / requests / lark-cli）
+7. 关键表数据量（00规则/13原子/14模板/08精选/09发布）
+
+门禁检查项：
+1. config.json 核心字段（brand_name / style_name / setup_status）
+2. GPT_IMAGE2_API_KEY 存在且有效
+3. 飞书连接（可选，feishu.enabled 时检查）
+4. 微信代理（可选，wechat_proxy.enabled 时检查）
+5. 工具依赖（Pillow / requests / lark-cli）
+6. 排版风格存在
+
+**门禁不通过不执行**。修复问题后重跑。
+
+## Phase 1: 选题与取料（harness 模式）
+
+v4 核心变化：选题从 08 精选生产池取，取料从 13 原子库按 00 规则取。
+
+### 自动取料流程
+
+```bash
+# 从 08 精选生产池选一条 P0 选题，自动组装原子
+python3 scripts/assemble_atoms.py --topic "关键词"
+# 或指定 record_id
+python3 scripts/assemble_atoms.py --pool-id recXXXX
+```
+
+脚本自动完成：
+1. 读取 00 取料规则（14 条约束）
+2. 从 08 精选生产池选题（按关键词或 record_id）
+3. 从 14 题材组合模板读取原子配方
+4. 从 13 可独立取料原子库按规则取料（A/B 证据等级优先）
+5. 从 15 视觉素材库取关联素材
+6. 输出 atoms.json
+
+### 08→09 发布队列同步
+
+```bash
+# 将 08 的 P0 可写选题同步到 09 发布队列
+python3 scripts/sync_publish_queue.py
+# 预览模式
+python3 scripts/sync_publish_queue.py --dry-run
+```
+
+### 文章类型判断（先于风格路由）
+
+| 用户说的 | 文章类型 | 写法 |
+|---|---|---|
+| 「帮我引流/展示服务/吸引客户」 | **引流文** | 痛点→案例→做了什么→效果→交付清单→CTA。读者看完要觉得「我也需要这个」 |
+| 「写一篇技术文章/记录改造过程」 | 技术文 | 问题→方案→实现→踩坑→代码。面向同行/技术人员 |
+| 「按SOP写内容/生产今天的公众号」 | 标准内容文 | 按风格路由走 |
+
+**关键区分**（2026-07-11 用户原话纠正）：用户说「写公众号内容」且上下文涉及「帮XX公司做了XX」时，默认是**引流文/服务展示**，不是技术复盘。自检：读者看完会不会想「我也需要这个」？不会=还是太技术。引流文不需要写脚本代码、行数统计、技术细节——要写业务价值、具体效果、怎么联系。
+
+### 风格路由决策表
 
 | 选题关键词 | 写作风格文件 | 叠加 |
 |---|---|---|
-| AI工具/课程/工作流/变现/n8n/飞书/线索/获客/客服/销售/自动化 | `n8n-wechat-full-prompt.md` | — |
+| AI自动化/工作流/内容中台/选题/拆解/改造/实战复盘 | **`dayao-writing-prompt.md`**（默认） | — |
+| AI工具/课程/变现/n8n/飞书/线索/获客/客服/销售 | `n8n-wechat-full-prompt.md` | — |
 | 政策解读/企业深度分析/个人视角叙事 | `writing-style.md`（khazix-writer） | — |
-| AI企业应用/B端/SaaS/Agent落地/ROI/采购/供应商风险 | `writing-style.md` | + `enterprise-windvane.md` |
+| AI企业应用/B端/SaaS/Agent落地/ROI/采购 | `writing-style.md` | + `enterprise-windvane.md` |
+| 引流文/服务展示/案例引流/帮企业定制 | `lead-gen-writing-style.md` | — |
 
-## 生产流程（13步 Checklist）
+| **默认路由**：用户说「写公众号内容」且没有明确指定风格时，用引流文风格(`lead-gen-writing-style.md`)。理由：用户7/14纠正过一次——他说「先帮我写今天的工众号内容」，agent用了dayao实战复盘体，用户说「这篇不是用的我的那个引流的写的吗」。大姚的公众号主要目的是引流获客，不是技术分享。只有用户明确说「写技术文/实战复盘」时才用dayao-writing-prompt。
 
-**核心原则**：全自动执行，异常才上报，主人只看结果。
+**配图风格**：统一使用归藏材质插画（guizang-material-illustration skill），不要用通用GPT Image 2 prompt。生成配图前必须读取该skill的visual-style.md和prompt-patterns.md。
 
-输出目录：`output/{date}-{slug}/`（slug: 2-4 words kebab-case）
+**截图要求**：飞书表格、HTML渲染、卡片渲染都用真实输出截图，不要mock-up。Playwright截真实HTML（中文文件名cp成英文名），lark-cli拉真实数据。
 
+**正文质量**：写之前先读最近2-3篇引流文的article.md，学习具体数字/案例展开/交付清单/角色价值。写完和历史文章对比，不能比历史最佳差。
+
+### ⚠️ 引流文 ≠ 技术文档（2026-07-11 用户原话纠正）
+
+**用户原话：「啥玩意 不行 太差了 效果」**
+
+第一次写引流文时，agent 按技术文档思路写——堆表格、列脚本行数、讲代码实现。用户直接否了。
+
+**根因**：没搞清楚「文章是给谁看的」。引流文的读者是**企业老板/运营负责人**，不关心脚本行数和代码实现。关心「能不能帮我解决问题」「值不值得花钱找你做」。
+
+**自检**：读者看完会不会想「我也需要这个」？不会 = 还是太技术。
+
+**触发判断**：用户说「引流/获客/展示服务能力/案例包装/帮企业做XX/写给客户看」→ 必须用 `references/lead-gen-article-guide.md`，不要用 n8n-blogger 或 khazix-writer。
+
+### 调研（必做）
+
+1. 从 content_directions 提取关键词，限定最近7天，搜索3-5条爆款标题
+2. 选题防撞：扫 covered_topics，重叠则换方向
+3. 五维评分（5分制）：生存焦虑(30%)+需求具体(20%)+可复制(25%)+画像匹配(15%)+数据支撑(10%)
+4. 决策：≥4.0直接写，3.5-3.9写但排后，<3.5淘汰
+
+详见 `references/real-research-methodology.md`（次幂数据+知识星球+B站/知乎四线并行调研）
+
+### P2 功能/数据/渠道预清点 ⚠️ REQUIRED
+
+写之前先问/自查 3 类素材：
+1. **数据**：所有要写的百分比/工时/月省/转化率——是否有真实来源？
+2. **功能/产品**：要写的功能——用户真的做出来了吗？
+3. **渠道/CTA**：要写的链接/二维码——用户当前渠道状态如何？
+
+输出格式（喂给 Writer）：
 ```
-公众号生产 Progress:
-- [ ] Step 1: 配比轮转判断 → state.json (round_state)
-      按 content_ratio 轮转（默认60%-30%-10%）。读 config.json round_state 判断当前该写哪类。
-- [ ] Step 2: 爆款调研（必做） → research.md
-      从 content_directions 提取关键词，限定最近7天，搜索3-5条爆款标题。
-      选题防撞：扫 covered_topics，重叠则换方向。
-      详见 references/writing-style.md 的调研策略。
-- [ ] Step 3: 选题评分
-      五维评分（5分制）：生存焦虑(30%)+需求具体(20%)+可复制(25%)+画像匹配(15%)+数据支撑(10%)
-      AI企业应用/B端选题 → 7维评分：读 references/enterprise-windvane.md
-      决策：≥4.0直接写，3.5-3.9写但排后，<3.5淘汰。
-- [ ] Step 4: 文章原型判断
-      调查实验型/产品体验型/现象解读型/工具分享型/方法论分享型/enterprise-windvane型
-      查 references/writing-style.md 原型表。
-- [ ] Step 4.5: P2 功能/数据/渠道预清点 ⚠️ REQUIRED
-      写之前先问/自查 3 类素材（不要写完才被打回）：
-      1. **数据**：所有要写的百分比/工时/月省/转化率/效果数字——是否有真实来源？
-         没有就用定性表述（"大半天"/"通常"），或加"按你账号实测"前置定语。
-      2. **功能/产品**：要写的"飞书多维表格""RAG""可视化 UI""自动审核"——用户真的做出来了吗？
-         没做就改模糊表述（"飞书机器人推送"代替"飞书多维表格选题池"）。
-      3. **渠道/CTA**：要写的"加微信""闲鱼链接""资料包二维码"——用户当前渠道状态如何？
-         用户说"明天才挂闲鱼" → 当天 CTA 不能写闲鱼链接，写"先聊"。
-         触发：用 `clarify` 一句话确认；用户没明确时输出"我假设 X，如果错告诉我"清单。
-      输出格式（不是元数据，是 prompt 喂给 Writer）：
-      ```
-      ## 本篇真实可用素材（来自用户/调研）
-      - 数据：1 个号日发 1-2 篇（行业常识）、用户账号实测工时（待实测）
-      - 功能：服务器控制台 ✅、飞书机器人 ✅、ai-gzh-platform Skill 库 ✅、飞书多维表格 ❌（没做）
-      - 渠道：个人微信「...」（✅ 可写）；闲鱼链接（❌ 明天才挂）
+## 本篇真实可用素材
+- 数据：xxx
+- 功能：xxx ✅ / xxx ❌（没做）
+- 渠道：xxx ✅ / xxx ❌（明天才挂）
 
-      ## 不得写入（替代为）
-      - "飞书多维表格选题池" → "飞书机器人推送草稿"
-      - "1 人 3 号变 1 人 5 号" → 删掉
-      - "闲鱼 ¥199 一次性" → "加微信先聊"
-      ```
-- [ ] Step 5: 内容撰写 → article.md
-      查上方「风格路由决策表」选风格文件。约1200字（n8n-blogger 风格1000-1500字）。
-      写作硬规则（**仅 khazix-writer 风格**）：禁小标题/冒号/破折号/双引号(用「」)/emoji；口语化转场；CTA公式。
-      **n8n-blogger 风格另议**：保留表格、❌/✅ 标记、破折号、英文双引号等 B 端爆文常见标点，只跑 Cleaner 的禁词表（赋能/闭环/颠覆式/颗粒度/抓手/底层逻辑/值得注意的是/综上所述/首先其次最后/总体而言/不容忽视）。
-      写作前必须先看 references/<style-file>.md 决定走哪条规则，不要无脑套 khazix 的硬规则。
-      **⚠️ execute_code 沙箱读不到 env** → 调 generate_image.py 必须用 terminal()。
-- [ ] Step 6: 五层自检（必做）  → qa-report.md
-      L1 禁用词+禁用标点零命中 | L2 口语化≥5词组 | L3 观点有支撑 | L4 像真人写的
-      **L5 反虚构（2026-07-06 用户硬偏好，正式提升为五层之一）**：
-        ① 数字/百分比/工时/业务数据 全部有真实来源，无源 = 删/改模糊；
-        ② 没做的产品/功能/Skill 不能写进文章；
-        ③ 渠道/CTA 必须反映用户当前状态（用户说"先不挂闲鱼"则当天不能写闲鱼链接）；
-        ④ 截图位/AI 配图位必须输出"哪个用户做/哪个 AI 做"分工清单（参考 references/n8n-wechat-full-prompt.md 「素材位分工」节）。
-        详见 `references/n8n-wechat-full-prompt.md` 顶部「用户硬偏好」节。
-      enterprise-windvane 模式追加 Step 6.5 风向标结构自检（见 references/enterprise-windvane.md）
-- [ ] Step 7: 标题打磨 ⚠️ REQUIRED
-      标题公式：[主体]+[场景/数字]+[解决什么问题]。
-      硬约束：title ≤ 30 字节，digest ≤ 54 字节（UTF-8，中文3B/字）。
-      写完立刻实测：python3 scripts/check_title_digest.py --title "标题" --digest "摘要"
-- [ ] Step 8: 落脚点检查
-      读者拿走能直接用的是什么？步骤+截图/提示词模板/可抄作业方案 ✅ | 纯功能介绍 ❌
-- [ ] Step 9: 配图生成 → imgs/ + prompts/*.md
-      读 config.json image_style，按对应风格生成。
-      先写 prompt file 到 prompts/NN-{type}-{slug}.md，再调 generate_image.py。
-      详见 references/visual-templates.md
-      generate_image.py: python3 scripts/generate_image.py --prompt "..." --size "1792x768" --output "imgs/cover.png"
-- [ ] Step 9.5: 用户素材盘点与分配 ⚠️ REQUIRED（多轮收图后）
-      见 `references/user-asset-ingestion.md` 4 步流程：
-      ① vision_analyze 逐张盘点 → ② 3 类分类（当前文核心 / 姊妹篇延伸 / 不可用）
-      → ③ 输出位置分配表 → ④ 全部嵌入 HTML（真实素材不要虚线框）
-- [ ] Step 10: HTML转换 → html/{slug}-微信粘贴版-v1.html + {slug}-推草稿版-v1.html
-      双HTML模式（必做）：见 references/two-html-pattern.md
-      **两个 HTML 不能复用**：
-        - 微信粘贴版：用 `md_to_html.py`（浏览器样式 + base64 内嵌图），用户自己粘贴到公众号后台
-        - 推草稿版：用 `references/wechat-native-html-template.md` 的 `md_to_wechat_native()`（**全行内 style + 微信原生标签** + 相对路径 imgs/）
-      **为什么不能复用**：微信草稿箱编辑器是结构化编辑器，会过滤 `<style>` 块、丢 `class=""`、丢 `data-src`——浏览器版推过去会丢虚线框/微信号块/图片。详见 push-draft-pitfalls.md 坑 10。
-      **推草稿版反例**（手机端实测 2026-07-06）：不能用 `<ul>/<ol>/<li>`（微信会插入空 li）、不能用 `<thead>/<tbody>` 嵌套。改用 `<p>● 内容</p>` + position absolute 模拟列表，表格改"卡片化"（表头 `<p>━━━ A|B|C ━━━</p>` + 行 `<p style="background:...;">A | B | C</p>`）。详见 push-draft-pitfalls.md 坑 13。
-      **字号规范**（手机端 14-15px 偏小）：正文 16-17px / line-height 2.0（不要 1.75），H1 22-24px / H2 19-20px / H3 17-18px。
-      推草稿前必跑：compress_images.py → HTML 引用 .jpg 不含封面 → check_title_digest.py
-- [ ] Step 11: 资料包创建（可选，feishu.enabled=true时）
-      飞书doc分两步写入（POST /documents → POST /blocks/{id}/children），按30/batch分批。
-      顺序约束：飞书doc必须在HTML之前创建（CTA链接嵌入doc_id）。
-      详见 references/push-draft-pitfalls.md 坑5-6
-
-      **⚠️ 资料包内容规范**：资料包是公众号文章的**补充材料**，不是复制版。
-      资料包应包含：
-      - 核心结论速览（3-5条关键数据点）
-      - 详细案例/服务商对比清单（文章中提到但未展开的内容）
-      - 避坑指南/选型建议
-      - 实操Checklist（读者可直接使用的清单）
-      - 常见问题FAQ
-      - 延伸阅读/参考资料
-
-      **⚠️ 权限设置**：创建文档后必须设置公开权限，否则公众号CTA链接读者打不开。
-      ```python
-      PATCH /open-apis/drive/v1/permissions/{doc_id}/public?type=docx
-      Body: {"external_access_entity": "open", "link_share_entity": "anyone_readable"}
-      ```
-- [ ] Step 12: 推草稿到公众号（可选，wechat_proxy.enabled=true时）
-      传输层详见 `wechat-official-account` skill（两个静默损坏bug + wx-proxy部署 + 错误码表）。
-      预处理3步：compress_images.py → HTML不嵌cover → check_title_digest.py
-      python3 scripts/push_draft.py --title "标题" --digest "摘要" --html 推草稿版.html --cover cover.jpg --images imgs/*.jpg
-      推完自动验证：拉draft/get确认中文字符>1000且\u=0。失败自动删草稿+诊断Bug#1/Bug#2。
-
-      **⚠️ WX_PROXY_SERVER 必须 export**：`source ~/.hermes/.env` 后必须 `export WX_PROXY_SERVER`，否则 Python 子进程拿不到。
-      完整命令：`source ~/.hermes/.env && export WX_PROXY_SERVER WX_PROXY_PORT WX_PROXY_TOKEN WX_APPID WX_APPSECRET && python3 scripts/push_draft.py ...`
-- [ ] Step 13: 交付通知
-      推送全部产出物：article.md + HTML×2 + 配图 + 资料包链接 + CTA关键词。
-      更新 state.json: {"step":13,"pushed":true}
-
-- [ ] Step 14: 多平台分发（可选，aitoearn MCP 可用时）
-      加载 `aitoearn-multisite` skill + 读取 `references/multiplatform-content-conversion.md`。
-
-      **转化不是改格式，是换语言体系说话。**
-
-      14.1 提炼母核：从article.md提取1句话核心观点+3个支撑论据。
-      14.2 按平台转译（不是复制粘贴，是用目标平台的原生语言重新讲述）：
-      - 小红书（xhs）：标题≤20字，正文≤1000字，emoji+清单体+标签，图文轮播6-9张
-      - 抖音（douyin）：标题≤30字，正文≤1000字，口语化+冲突感，轮播6-12张
-      - 视频号（wxSph）：标题≤16字，正文≤1000字，口播+字幕+金句
-      - 快手（KWAI）：标题≤30字，仅视频
-      - B站（bilibili）：标题≤79字，简介≤249字，仅视频
-      14.3 生成视觉资产：**用归藏 guizang-social-card-skill**（已安装，~/.hermes/skills/guizang-social-card-skill/）
-          - Swiss网格风（IKB Blue）适合AI/工具/效率赛道
-          - 每页选不同recipe（S01封面/S05误区/S02对比/S11要点/S06流程/S07总结）
-          - 优先用真实截图，AI生图只做封面
-          - ⚠️ 不要手搓HTML轮播图，归藏skill已解决排版问题
-          - 详见 references/multiplatform-content-conversion.md「视觉渲染」节
-      14.4 用AiToEarn发布：MCP工具 createChannelPublishFlow → publishChannelTaskNow
-
-      ⚠️ 前置条件：用户需在 aitoearn.cn 绑定各平台账号。
-      ⚠️ 首次使用需确认 AiToEarn MCP 已配置（见 aitoearn-multisite skill）。
+## 不得写入（替代为）
+- "xxx" → "xxx"
 ```
 
-### state.json Checkpoint 机制
+## Phase 2: 内容撰写
 
-每步完成后更新 `output/{date}-{slug}/state.json`：
+**必须读取的文件**（按风格路由决策表选对应文件）：
+1. 风格路由表选出来的 writing style 文件
+2. `atoms.json`（如果有原子化数据）或 Phase 1 的 research.md
+3. 对应的 prompt 模板
 
-```json
-{
-  "step": 5,
-  "slug": "ai-consumer-policy",
-  "title": null,
-  "style": "writing-style.md",
-  "images": [],
-  "html_paste": null,
-  "html_draft": null,
-  "pushed": false
-}
+**写作硬约束**：
+- 所有事实/数据必须有真实来源，不得编造
+- 禁用词零命中：赋能/闭环/颠覆式/颗粒度/抓手/底层逻辑/综上所述/值得注意的是
+- 双引号零命中（用「」代替）
+- ≥2500字、≥2个表格、≥3个配图标记（`【配图X：desc】`或`[SCREENSHOT: desc]`/`[AI-IMG: desc]`）
+- 正文段落每段 ≤ 4 行（手机阅读友好）
+- 信息峰值密度：每 300 字 ≥ 1 个峰值（金句/数据/小案例/对比/反常识），详见 `references/information-density.md`
+- 标题 ≤ 30 字节，摘要 ≤ 54 字节
+
+**标题公式**：[主体]+[场景/数字]+[解决什么问题]
+
+**标题流程（v4 新增）**：
+1. 读取 `references/title-formulas.md`（9 种标题方法 + 5 问自检）
+2. 用「AI 批量出题 Prompt」一次性出 10 个标题
+3. 过 5 问自检（目标用户有点击欲？有利益点？有数字/对比？身份标签精准？情绪词得当？）
+4. 过字节校验：
+```bash
+python3 scripts/check_title_digest.py --title "标题" --digest "摘要"
 ```
 
-中断后重新进入时：先读 `state.json` → 从 step+1 恢复，不从头来。
+**输出**：`output/{date}-{slug}/article.md`
+
+## Phase 3: 配图生成
+
+**必须读取**：`guizang-material-illustration` skill 的 SKILL.md（配图 prompt 模板）
+
+配图生成命令：
+```bash
+source ~/.hermes/.env && export GPT_IMAGE2_API_KEY
+
+# 封面图（21:9 横版，公众号头条封面）
+python3 scripts/generate_image.py --prompt "PROMPT" --size "1792x768" --output imgs/封面-cover.png
+
+# 正文配图（1.9:1，归藏材质插画风格）
+python3 scripts/generate_image.py --prompt "PROMPT" --size "1792x1024" --output imgs/配图-xxx.png
+```
+
+**⚠️ 文件命名规范**：`配图-<中文关键词>-<英文slug>.png`，中文关键词必须能被 `build_html.py` 的 `IMG_KEYWORDS` 匹配到。
+
+**生图失败时的降级顺序**：
+1. 直接调 `generate_image.py`（zhongzhuan.chat 中转通常稳定）
+2. `delegate_task` 派子代理生图
+3. 告知用户"图片生成失败"，先交付 article.md + 无图 HTML 骨架
+4. ❌ 绝不用旧选题的图片冒充
+
+## Phase 4: HTML 生成
+
+```bash
+python3 scripts/build_html.py --article article.md --imgs-dir imgs/
+```
+
+脚本自动完成：
+1. 读取 article.md
+2. 从 config.json 读取排版风格（11种可选）
+3. 扫描 imgs/ 目录中的图片
+4. 匹配配图标记与图片文件
+5. 所有图片转为 base64 JPEG 内嵌
+6. Markdown 完整渲染（标题/表格/引用/代码/列表/占位框）
+7. 输出一个完整的 HTML 文件（无需外部文件）
+
+**关键**：最终 HTML 是一个文件，图片全部 base64 内嵌，浏览器直接打开就能看。
+
+**推草稿额外需要**：如果要推公众号草稿，还需要生成推草稿版（相对路径 imgs/，不嵌 base64）。参见 `references/two-html-pattern.md`。
+
+## Phase 5: Postflight（验证）
+
+```bash
+python3 scripts/postflight.py --output-dir output/{date}-{slug}
+```
+
+验证项：
+1. article.md 存在且字数 ≥2500
+2. 禁用词零命中、双引号零命中
+3. 数据表格 ≥2个（≥4行数据行）
+4. 配图标记 ≥3个
+5. 图片文件 ≥4张且 >100KB
+6. HTML 文件存在且内嵌 ≥3张 base64 图片
+7. 正文段落每段 ≤4 行（超限输出具体行号）
+8. 信息峰值密度每 300 字 ≥1 个（⚠️ 警告，不阻断交付）
+
+**验证不通过不交付**。修复问题后重跑。
+
+## Phase 6: 交付
+
+**加载**：`feishu-send-attachment` skill（通过飞书 im/v1 API 发送真实文件卡片）
+
+发送给用户：
+1. 完整 HTML 文件（base64 内嵌）— 用 `msg_type=file` 发送
+2. 封面图（单独发送，用于公众号后台上传）— 用 `msg_type=image` 发送
+
+❌ 不要用 `MEDIA:/path` 文本方式发文件——飞书会显示为纯文本字符串。
+
+输出验收表：
+
+| 项 | 结果 |
+|---|---|
+| skill | ai-gzh-platform v3 |
+| config | configured / blocked |
+| 排版风格 | style_name |
+| article workflow | Phase 0-5 已执行 / 哪步阻塞 |
+| image model | gpt-image-2 |
+| image files | cover + n 张正文图 |
+| article QA | 禁用词/双引号/字数/表格/配图标记 |
+| title bytes | x / 30 |
+| digest bytes | x / 54 |
+| HTML | xxxKB, x张内嵌图 |
+| optional publish | 推草稿/多平台分发是否执行 |
+
+## Phase 7（可选）: 推草稿到公众号
+
+需要 `wechat_proxy.enabled=true`。
+
+预处理3步：compress_images.py → HTML 不含 cover → check_title_digest.py
+
+```bash
+source ~/.hermes/.env && export WX_PROXY_SERVER WX_PROXY_PORT WX_PROXY_TOKEN WX_APPID WX_APPSECRET
+python3 scripts/push_draft.py --title "标题" --digest "摘要" --html 推草稿版.html --cover cover.jpg --images imgs/*.jpg
+```
+
+推完自动验证：拉 draft/get 确认中文字符>800 且 \u=0。失败自动删草稿。
+
+**⚠️ WX_PROXY_SERVER 必须 export**：`source ~/.hermes/.env` 后必须 `export WX_PROXY_SERVER`。
+
+详见 `references/push-draft-pitfalls.md`
+
+## Phase 8（可选）: 多平台分发
+
+**小红书专项**：已有独立 skill `ai-xhs-platform`，包含6大标题公式（数据验证版）、4种写作风格、postflight自动校验。触发"转小红书"时优先加载该skill，不要用通用的多平台分发流程。
+
+通用分发流程（非小红书平台）：
+加载 `aitoearn-multisite` skill + 读取 `references/multiplatform-content-conversion.md`。
+
+14.1 提炼母核：从 article.md 提取1句话核心观点+3个支撑论据
+14.2 按平台转译（不是复制粘贴，用目标平台原生语言重新讲述）
+14.3 生成视觉资产：用归藏 guizang-social-card-skill
+14.4 用 AiToEarn 发布：createChannelPublishFlow → publishChannelTaskNow
 
 ## 合规红线
 
@@ -391,6 +467,7 @@ skills/ai-gzh-platform/
 
 | 需要什么 | 加载文件 |
 |---|---|
+| **引流文/服务展示写作** | **`references/lead-gen-article-guide.md`** |
 | 首次配置流程 | `references/setup-walkthrough.md` |
 | 执行门禁细则 | `references/execution-gate.md` |
 | khazix-writer 写作风格 | `references/writing-style.md` |
@@ -403,7 +480,7 @@ skills/ai-gzh-platform/
 | 小姚prompt模板 | `references/prompt-template.md` |
 | 小姚构图模式 | `references/composition-patterns.md` |
 | 配图QA检查 | `references/qa-checklist.md` |
-| **推草稿版 HTML 适配（行内样式模板）** | **`references/wechat-native-html-template.md`**（推草稿版必须全内联 style + 微信原生标签，与浏览器粘贴版分两个文件生成） |
+| 推草稿版 HTML 适配 | `references/wechat-native-html-template.md` |
 | 推草稿踩坑 | `references/push-draft-pitfalls.md` |
 | 双重UTF-8编码陷阱 | `references/push-draft-double-encoding-pitfall.md` |
 | 常见 Live Failure | `references/live-failures.md` |
@@ -411,93 +488,124 @@ skills/ai-gzh-platform/
 | 本地降级 HTML | `references/local-fallback-html-pack.md` |
 | System Prompt 参考 | `references/system-prompt.md` |
 | 公开仓库发布检查 | `references/public-release-checklist.md` |
-| 多平台分发 | `aitoearn-multisite` skill（独立 skill） + `references/multiplatform-content-conversion.md`（转化方法论+视觉规范+HTML轮播pipeline） |
-| **用户素材盘点与分配** | **`references/user-asset-ingestion.md`（多轮收图后必走）** |
+| 真实素材调研方法论 | `references/real-research-methodology.md` |
+| 多平台分发 | `aitoearn-multisite` skill + `references/multiplatform-content-conversion.md` |
+| 用户素材盘点与分配 | `references/user-asset-ingestion.md` |
+| 原子化内容管线 | `references/atomized-content-pipeline.md` |
+| 双HTML模式 | `references/two-html-pattern.md` |
+| Harness 迁移指南 | `references/harness-migration-guide.md`（从 checklist 迁移到脚本化门禁的方法论） |
+| **大姚实战复盘体（默认）** | **`references/dayao-writing-prompt.md`**（AI自动化工作流实战，5种文章类型） |
+| **引流文写作风格** | **`references/lead-gen-writing-style.md`**（kunpeng白皮书风，场景式标题+8章节结构） |
+| **标题公式库（v4 新增）** | **`references/title-formulas.md`**（9种标题方法+5问自检+AI批量出题prompt+引流文vs技术文差异） |
+| **信息峰值密度（v4 新增）** | **`references/information-density.md`**（每300字≥1峰值，5种峰值类型+排版强化+postflight集成） |
+| **2026-07-11 踩坑记录** | **`references/pitfalls-session-2026-07-11.md`**（#53-56 IMG_KEYWORDS/文件名/引流文路由/HTML截图，#59-62 GPT Image 2超时/引流文角度差异化/不提客户公司名/真实图片vs概念图，共10条） |
+| **2026-07-13 16表迁移踩坑** | Pitfalls #56-58（kunpeng/ai-gzh独立Base/v2取料逻辑/发布队列同步条件） |
+| **2026-07-14 踩坑记录** | **`references/pitfalls-session-2026-07-14.md`**（#63-67：杂志感深色调/归藏配图风格/引流文默认路由/推草稿流程/Playwright中文文件名） |
 
-## Pitfalls 速查
+## 文件结构
 
-> **设计铁律（用户硬偏好 2026-07-06 升级）**：**所有**需要用户替换/补充/确认的素材位（截图/二维码/对比图/产品图/CTA 块）**统一用虚线框 + 醒目文字标签**——读者一眼能看出"这个位置需要人"。截图位用橙色虚线（#F59E0B + #FFFBEB），AI 配图位用蓝色虚线（#2563EB + #EFF6FF），微信号 CTA 块用蓝色实线边框（#2563EB + #F0F7FF）。用户原话："那个虚线框蛮好看的 可以在以后所有的图片都加一个虚线框"。
+```
+skills/ai-gzh-platform/
+├── SKILL.md                        ← 本文件
+├── config.example.json             ← 配置模板
+├── config.json                     ← 用户配置
+├── install.sh                      ← 一键安装脚本
+├── references/                     ← 参考文档（32个）
+├── scripts/
+│   ├── preflight.py                ← Phase 0 门禁检查
+│   ├── init_config.py              ← 首次配置向导
+│   ├── generate_image.py           ← GPT Image 2 生成
+│   ├── check_title_digest.py       ← 标题/摘要字节校验
+│   ├── compress_images.py          ← PNG→JPG 压缩
+│   ├── build_html.py               ← Phase 4 HTML 生成（base64内嵌）
+│   ├── postflight.py               ← Phase 5 质量验证（v4: 8步，含段落行距+信息峰值密度）
+│   ├── push_draft.py               ← Phase 7 推草稿
+│   ├── compose_from_text.py        ← Pillow 合成对比图
+│   ├── assemble_atoms.py           ← 自动取料（00规则→13原子库）
+│   ├── sync_publish_queue.py       ← 08→09 发布队列同步
+│   ├── md_to_html.py               ← 旧版 HTML 生成器（保留兼容）
+│   └── wx-proxy.js                 ← 微信代理服务器
+└── assets/examples/                ← 校准样图
+```
 
-1. **标题字节超限** → 写完立刻跑 `check_title_digest.py`，每汉字3B
-2. **execute_code 读不到 env** → 调 `generate_image.py` 用 `terminal()` 不用 `execute_code`
-3. **推草稿 HTML 不压缩** → 先 `compress_images.py` 转 JPG，推草稿版不含封面
+## Pitfalls 速查（70条）
+
+> **设计铁律**：所有需要用户替换/补充/确认的素材位统一用虚线框 + 醒目文字标签。
+> **session级踩坑**：`references/pitfalls-session-2026-07-11.md`（#53-56 IMG_KEYWORDS/文件名/引流文路由/HTML截图，#59-60 GPT Image 2超时/引流文角度差异化）
+> **session级踩坑**：`references/pitfalls-session-2026-07-14.md`（#63-67 杂志感深色调/归藏风格/引流文默认/推草稿流程/Playwright中文文件名）
+
+1. **标题字节超限** → 写完立刻跑 `check_title_digest.py`
+2. **execute_code 读不到 env** → 调脚本用 `terminal()` 不用 `execute_code`
+3. **推草稿 HTML 不压缩** → 先 `compress_images.py` 转 JPG
 4. **飞书 doc 一次写超50个block** → 按30/batch分批
 5. **L1自检「这意味着」漏检** → `content.count(w)>0` 不是 `w in content`
 6. **GPT Image 2 偶有英文字母混入** → 记录即可，不重生成
-7. **只产一个HTML版本** → 永远产两个（微信粘贴版+推草稿版）
+7. **只产一个HTML版本（v1/v2规则，v3已改变）** → v1/v2 永远产两个（微信粘贴版+推草稿版）。v3 默认 build_html.py 产出单文件 base64 内嵌 HTML，推草稿版按需额外生成。见 Pitfall #46。
 8. **表头分隔行被渲染** → 过滤 `all(set(c)<=set("-: ") for c in row)`
-9. **MiniMax Token Plan 2056** → vision_analyze 等 LLM 调用返回 rate_limit_error，视觉 QA 被阻塞时记录到验收表「visual QA: ⚠️ 跳过（Token Plan 用量上限）」，不阻塞 HTML/交付。
-10. **飞书 block_type 编号错误** → 飞书 docx API block_type 不是自增整数，必须查 `references/feishu-block-pitfall.md` 速查表。写入前先用 1 个 block 测试格式，通过再批量（1770001 invalid param）。
-11. **WX_PROXY_SERVER 未设置** → `push_draft.py` 报 `Invalid URL 'http://:8787/...'`，host 为空。修法：`~/.hermes/.env` 添加 `WX_PROXY_SERVER=本机IP`，运行时 `source .env && export WX_PROXY_SERVER`。
-12. **飞书资料包与公众号文章重复** → 资料包是补充材料（服务商对比/避坑指南/实操清单/FAQ），不是文章复制版。Step 11 必须独立设计内容结构。
-13. **飞书文档权限未开放** → 创建后默认仅组织内可见，需调用 `PATCH /drive/v1/permissions/{token}/public` 设置 `link_share_entity: anyone_readable`，否则公众号 CTA 链接读者打不开。
-14. **引导内容硬编码作者品牌名** → 新用户 clone 后在引导/示例中看到作者实际公众号名。发布前 `grep -rn '实际品牌名' SKILL.md references/`，全部替换为"你的品牌名"通用占位符。详见 `references/public-release-checklist.md` 第5条。
-15. **视觉规范未标注来源** → 用户明确反感把二手总结当官方规则。任何视觉规范（字号/留白/布局）必须标注来源和可信度。区分"平台官方规则✅"vs"行业经验总结⚠️"。详见 `references/multiplatform-content-conversion.md` 视觉规范节。
-16. **多平台分发改尺寸不改内核** → 把公众号文章截图发小红书或读一遍发抖音是无效搬运。必须按平台"原生语言"重新讲述母核。详见 `references/multiplatform-content-conversion.md` 转化三步法。
-17. **GPT Image 2 中文文字渲染不稳定** → prompt里写"Large bold Chinese title '别再靠阅读分成赚钱了'"，AI可能渲染成英文。GPT Image 2对长中文句子的渲染不可靠。**对策**：① AI生图只做纯视觉背景（渐变/纹理/产品图），文字用代码叠加；② 或用归藏guizang-social-card-skill走HTML渲染路线（文字100%准确）；③ 短中文词（2-4字）比长句子渲染成功率高。
-18. **generate_image.py 静默失败** → 脚本exit code=1但无输出。原因：可能是Python环境或import问题。**直接用requests调API更可靠**：`source ~/.env && export $(grep GPT_IMAGE2_API_KEY ~/.hermes/.env) && python3 -c "import requests,base64,json,os; ..."`。详见 `references/multiplatform-content-conversion.md`「AI生图」节。
-19. **n8n-blogger 风格被混成 khazix-writer 语气（2026-07-06 用户原话："你好像是用的卡兹克的写法"）** → 结构（表格/❌✅/反问）能套用，但语气必须冷峻。**自检**：搜"我帮你""你团队里""别担心"，出现就改。详见 `references/n8n-wechat-full-prompt.md` 顶部「用户硬偏好」节第 3 条。
-20. **n8n 标题"没头没尾"（2026-07-06 用户原话）** → 标题必须有「数字+时间+动作+结果」四要素，缺一个就改。详见 `references/n8n-wechat-full-prompt.md` 顶部第 4 条。
-21. **AI 生图 API 单次请求超时（60s+）常见**（2026-07-06 实测） → 脚本默认 300s timeout + 3 retries，但仍可能 5+ 分钟才返回。**对策**：用 background=true 跑图像生成，主流程不阻塞。**批量生成时用 for 循环串行**（并发会触发 API 限流）。
-20. **检查脚本意外修改源文件** → 写「检查/自检」脚本时，**只读不写**。如果脚本既检查又 `replace()` 修改文件，每次跑都会覆盖你手工的修正（比如破折号 `——` 被替换成 `,`、中英符号被改写），而且报错"修不好"是因为脚本在反复回滚。**修法**：检查脚本只 print 结果；要做清洗就用单独脚本，且只跑一次。教训：2026-07-06 写"对禁词+标点"检查脚本时，把 `prose.replace('——', '，')` 放进了 checker，每次跑都把签名行 `——` 改成 `，`。
-21. **snap chromium 渲染本地 HTML 必须走 HTTP** → snap 安装的 chromium 拒绝 `file://` 协议（ERR_FILE_NOT_FOUND），但能正常访问 `http://localhost:xxxx`。**修法**：用 `python3 -m http.server 8766`（避开端口冲突）起个临时服务，HTML 放 cwd 下，再用 chromium 访问 `http://localhost:8766/xxx.html`。DrissionPage 同样的限制。教训：2026-07-06 渲染预览时反复 ERR_ACCESS_DENIED，最后起 http.server 才出图。
-22. **占位框的颜色语义** → 渲染时用两种占位框视觉区分：**截图位 = 橙色虚线（#F59E0B 边 + #FFFBEB 底）**；**AI 配图位 = 蓝色虚线（#2563EB 边 + #EFF6FF 底）**。读者一眼能看出"哪个要人来补、哪个等机器生成"。详见 `scripts/md_to_html.py` 的 `render_placeholder_box()`。
-23. **素材位分工没说清（2026-07-06 用户原话："到底是需要我提供真实的截图还是 有些地方是可以直接让gpt-image-2产出图的呀"）** → 当文章有 ≥ 3 个 SCREENSHOT 占位符时，agent **必须**额外输出一张「素材位分工清单」表（哪几个用户做、哪几个 AI 做、何时交）发到聊天，不能只把占位符嵌 HTML 就完事。详见 `references/n8n-wechat-full-prompt.md` 「素材位分工」节。
-24. **5 张图 base64 内嵌 ≈ 8MB，触顶飞书发送通道（2026-07-06 实测）** → 微信粘贴版默认 4 张 1792x1024 图 ≈ 1.5MB；如改 5 张（封面+4 Step），base64 内嵌后 HTML 涨到 **7.96 MB**。飞书消息体上限 **4MB**（send_message/IM text 通道会失败），文件附件上限 **10MB**（可发）。**修法**：5+ 张图版本必须走 `feishu-send-attachment` 脚本（`msg_type=file`），不能 send_message 走 IM 通道。详见 `references/two-html-pattern.md` 「5 张图边界」节。
-25. **`for` 循环跑多张 AI 生图 → 整批被 SIGTERM 一次性 kill（2026-07-06 实测）** → Pitfall #21 已记录"串行 for 循环"，但没记录 kill-batch 失败模式：把 3+ 张图的 `python3 generate_image.py` 调用塞进一个 for 循环，外层 shell 进程一旦被 SIGTERM（OOM/user-stop），**所有未完成图片全部丢失**，没有进度残留。**修法**：① 单进程只跑 1 张图（background + notify_on_complete），跑完再起下一张；② 或用 `nohup` + 写日志文件，便于中断后从日志恢复；③ `proc_*` session_id 记录每张图的进度。**反例**：2026-07-06 一次 for 循环跑 3 张图，被 SIGTERM -15 杀进程，3 张图全部未完成。
-26. **`execute_code` 沙盒无状态（2026-07-06 实测）** → Pitfall #2 记录了"读不到 env"，但没记录更广的"`execute_code` 每次都是新进程，所有 import 和变量都要重新定义"问题。`from hermes_tools import ...` 这种 import 在同一次 assistant turn 内的多次 execute_code 调用**不会**保留——下次调用必须重 import。**修法**：① 把多步逻辑塞进**一次** execute_code 调用的同一个脚本里跑完；② 跨 turn 持久化用 write_file 落盘；③ 渐进式补丁（step 1 调一次，step 2 再调一次）会反复 NameError。
-27. **渠道/CTA 不反映用户当前状态（2026-07-06 用户原话："先不挂闲鱼 先让他们联系我 我明天挂闲鱼"）** → 用户在"挂闲鱼前"的状态下，文章 CTA 不能写"闲鱼 ¥199 一次性"。L5 反虚构第 ③ 条已覆盖但这里再强调：**写 CTA 前用 clarify 确认 3 件事**——(a) 闲鱼是否已挂？没挂→ 写"加微信"；(b) 微信二维码是否就绪？没就绪→ 写微信号文字块；(c) 飞书资料包是否已建？没建→ CTA 链接留空。教训：2026-07-06 跑出文章后用户说"先不挂闲鱼"，已写好的闲鱼 CTA 整段作废要重写。
-28. **多步交付中途反复问"完成了吗"=反模式（2026-07-06 用户原话："还没完成吗" / "你直接搞完 然后发给我 别卡了"）** → 跑多步流水线（图→HTML→截图占位→发飞书）时，**不要中途停下来问"现在到了哪一步"**——用户能看文件系统和飞书消息，他/她问你时说明他自己也烦了。**正确动作**：(1) 把每一步的**自检**写进脚本里跑，跑完就过；(2) 中间状态用"已完成 X / 还差 Y"一句话压缩汇报，不展开；(3) 只在**真阻塞**（API 全挂/凭证缺失/请求被拒）时停下来问。**反例**：2026-07-06 我连发 2 次"还没完成吗/继续呀"被问后才发现——所有产物其实在第 1 次就生成完了，只是没自我验证就停了。
-29. **占位素材用「用户微信号 + 蓝色边框块」代替二维码（2026-07-06 实测）** → 用户给微信号但没给二维码时，文末 CTA 不要写"扫一扫"，改写：
-```html
-<span class="wechat-id">微信号：<strong>Yao934025938</strong></span>
-```
-样式：`display:block; background:#f0f7ff; border:2px solid #2563EB; border-radius:6px; padding:12px 16px; margin:16px 0; color:#2563EB; font-size:17px;` 一眼看到。**触发**：用户说"不留二维码了"+"我的微信号是 XXX"。**反例**：只把微信号当 inline 文字加粗——读者扫不到、记不住、最后就流失。
-30. **用户提供的截图截断 → 用 Pillow 从源文字重排合成（2026-07-06 实测）** → 当用户给"风格对比图"但右半部分被截断，**不要**让用户重新截。**正确动作**：用 Pillow `ImageDraw.text()` 把左右两份文字内容按统一版式（顶部黑底标题栏 + 左右栏头 + 底部参数对比条）合成 1 张干净图（典型 1400×1500，250KB 左右）。**优势**：① 排版统一、左右密度对齐；② 截图不全/低分辨率/UI 噪音全消失；③ 输出是设计稿级别，比手机截图更专业。**代码骨架**：
-```python
-from PIL import Image, ImageDraw, ImageFont
-font = "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc"
-canvas = Image.new("RGB", (1400, 1500), "#fafafa")
-draw = ImageDraw.Draw(canvas)
-draw.rectangle([0, 0, 1400, 100], fill="#1f2329")
-draw.text((40, 28), "风格学习前后对比", fill="#ffffff", font=ImageFont.truetype(font, 36))
-# 左栏 header / 右栏 header / 双栏正文 / 底部参数条
-```
-**适用场景**：用户截图被截/模糊/包含 UI 噪音的所有"对比图/数据图/教程图"。
+9. **MiniMax Token Plan 2056** → vision 被阻塞时记录，不阻塞交付
+10. **飞书 block_type 编号错误** → 查 `references/feishu-block-pitfall.md`
+11. **WX_PROXY_SERVER 未设置** → `source .env && export WX_PROXY_SERVER`
+12. **飞书资料包与公众号文章重复** → 资料包是补充材料，不是复制版
+13. **飞书文档权限未开放** → 创建后设 `link_share_entity: anyone_readable`
+14. **引导内容硬编码作者品牌名** → 发布前 `grep` 检查
+15. **视觉规范未标注来源** → 区分"平台官方规则✅"vs"行业经验总结⚠️"
+16. **多平台分发改尺寸不改内核** → 必须按平台原生语言重新讲述
+17. **GPT Image 2 中文文字渲染不稳定** → AI生图只做纯视觉背景，文字用代码叠加
+18. **generate_image.py 静默失败** → 直接用 requests 调 API 更可靠
+19. **n8n-blogger 风格被混成 khazix-writer 语气** → 搜"我帮你""你团队里"，出现就改
+20. **n8n 标题"没头没尾"** → 标题必须有「数字+时间+动作+结果」四要素
+21. **AI 生图 API 单次请求超时常见** → background=true 跑图，串行 for 循环
+22. **检查脚本意外修改源文件** → 检查脚本只读不写
+23. **素材位分工没说清** → ≥3个 SCREENSHOT 时输出分工清单
+24. **5 张图 base64 内嵌 ≈ 8MB** → 走 `feishu-send-attachment` 的 `msg_type=file`
+25. **for 循环跑多张 AI 生图被 SIGTERM kill** → 单进程只跑1张图
+26. **execute_code 沙盒无状态** → 每次都要重 import
+27. **渠道/CTA 不反映用户当前状态** → 写 CTA 前用 clarify 确认
+28. **多步交付中途反复问"完成了吗"** → 自推到底，只在真阻塞时停
+29. **占位素材用微信号代替二维码** → 用蓝色边框块，不是 inline 文字
+30. **用户截图截断** → Pillow 从源文字重排合成
+31. **用户给的图必须全嵌** → 4步流程：盘点→分类→分配→全嵌
+32. **push_draft.py 缺 import urllib.request** → 脚本顶部补齐
+33. **推草稿验真阈值 chinese>1000 误杀** → 阈值改为 800
+34. **PNG base64 接近 2MB 限制** → 推草稿版用相对路径，先 compress_images.py
+35. **draft/get 不带 media_id 返回空数组** → 逐个传 media_id 拉
+36. **vision_analyze 渲染 emoji 成方框** → fontconfig 问题，浏览器里正常
+37. **CTA 变更必须同步所有产物** → article.md + 两个 HTML + 飞书资料包
+38. **多步交付完成度 = 自我验证 + 单条汇报**
+39. **md_to_html.py 不转换 markdown 图片语法** → 手动替换为 base64/相对路径
+40. **md_to_html.py 无 --input/--output 参数** → 自动扫描 output/ 最新目录
+41. **次幂数据 API 返回 data.items 非 data.articles**
+42. **泛泛文章=废稿** → 写之前必须做真实素材调研，没有具体工具名/真实成本的文章用户一眼看出是AI编的
+43. **postflight禁用词误报（2026-07-11 实测，修复待验证）** → 文章里列举禁用词本身（如「禁用词零命中：赋能/闭环/颠覆式」）会被 postflight.py 检出为命中。**修法**：① 写文章时不要在正文中直接列出禁用词，用「X/Y/Z等黑话」替代；② postflight.py 应在禁用词检查前先 `re.sub(r'```.*?```', '', content, flags=re.DOTALL)` 剥离代码块再检查。**⚠️ 注意**：v4 postflight.py 的禁用词检查目前仍检查原始 content，代码块剥离尚未应用——agent 下次改 postflight.py 时应顺手加上。
+44. **「唯一」是禁用词（2026-07-11 实测）** → 「config.json是唯一真相来源」被 postflight 检出。改用「单一配置源」「核心配置源」。禁用词完整列表：赋能/闭环/颠覆式/颗粒度/抓手/底层逻辑/综上所述/值得注意的是/唯一/引领/颠覆。
+45. **config.json字段迁移：brand_name → brand.brand_name（2026-07-11 v3升级）** → 旧版 config.json 用 `brand_name` 在根级别，新版用 `brand.brand_name` 嵌套。升级时 init_config.py 会自动迁移，但手动编辑 config.json 时注意不要混用新旧格式。
+46. **v3单HTML是默认（2026-07-11 重新定义）** → Pitfall #7「永远产两个HTML」是v1/v2的规则。v3 默认 build_html.py 产出单文件 base64 内嵌 HTML（一个文件搞定）。推草稿版仍需额外生成（md_to_html.py 或 build_html.py --draft-mode），但不再是默认行为。
+47. **snap chromium 渲染本地 HTML 必须走 HTTP（2026-07-11 实测）** → snap 安装的 chromium 拒绝 `file://` 协议（ERR_ACCESS_DENIED/ERR_FILE_NOT_FOUND），但能正常访问 `http://localhost:xxxx`。**修法**：`python3 -m http.server 8777 --bind 127.0.0.1` 起临时服务，chromium 访问 `http://127.0.0.1:8777/xxx.html`，截图完 `kill` 服务进程。此限制同样影响 agent-browser。见 pitfall #21。
+48. **postflight 表格计数 bug（2026-07-11 实测）** → postflight.py 的表格行检测正则 `^\|.+\|$` 在某些 markdown 渲染器输出的表格中可能匹配不到（行首有空格、或表格行被包裹在其他标签中）。不影响核心验证（字数/禁用词/配图标记），但如果 postflight 报「0行数据」而文章实际有表格，先手动确认再信任脚本结果。
+49. **引流文写成技术文档被用户否（2026-07-11 用户原话：「啥玩意 不行 太差了 效果」）** → 第一次写引流文时堆了脚本行数、代码细节、技术架构。用户说「不是 我是想用帮鲲鹏翼航定制公众号自动发布流程 做一个帮我自己引流的公众号内容」。**根因**：没区分「文章类型」。引流文的读者是企业老板，不关心技术实现。**修法**：① 写之前先判断文章类型（引流文/技术文/标准内容文）；② 引流文必须用 `references/lead-gen-article-guide.md`；③ 自检：读者看完会不会想「我也需要这个」？
+50. **标题「数字暴击式」不适合引流文（2026-07-11 实测）** → 「7步替代13步」「1259行代码+42条踩坑」这种数字标题对技术人员有吸引力，但对企业老板没有。老板关心的是「我的公众号为什么停更」而不是「你用了几个脚本」。引流文标题用**场景式/痛点式**：「公众号停更3个月，不是因为没人写」「1个人管3个公众号，怎么做到的」。
+51. **两种HTML风格混淆（2026-07-11 实测）** → 引流文和技术文的HTML效果截图应该用不同文章的。技术文用改造后的系统产出的HTML（展示排版效果），引流文用鲲鹏翼航等客户案例的HTML（展示服务成果）。截图前先确认用哪篇文章的HTML。
+52. **snap chromium 截图必须走 HTTP 服务（2026-07-11 实测）** → 与 Pitfall #47 同源。截公众号HTML效果图时：① `python3 -m http.server 8777 --bind 127.0.0.1` 起临时服务；② `chromium --headless --no-sandbox --screenshot=/path.png --window-size=800,900 \"http://127.0.0.1:8777/path.html\"`；③ 截关键部分（标题区/表格区/配图区/CTA区），不用截全页；④ 截完 `kill` 服务进程。URL中的中文文件名需要先 `cp` 成英文名再访问。
+53. **build_html.py IMG_KEYWORDS 缺配图5/6（2026-07-11 实测）** → IMG_KEYWORDS 字典只有配图1-4和正文素材，没有5和6的条目。后果：配图5和6的marker匹配不到对应图片文件，HTML里只有封面+配图1-4（5张），缺2张。**修法**：在 `scripts/build_html.py` 的 `IMG_KEYWORDS` 里补上 `"配图5"` 和 `"配图6"` 的关键词列表。**自检**：生成HTML后检查内嵌图片数是否等于配图marker数+1（封面），不等就是有漏匹配。此 bug 已在 2026-07-11 修复。
+54. **图片文件名必须含「配图N」才能被编号精确匹配（2026-07-11）** → build_html.py 的 embed_image 先按编号匹配：从marker提取「配图N」→ 在IMG_KEYWORDS找关键词 → 在文件名里搜。如果文件名不含「配图N」也不含任何关键词，就匹配不上。**命名规范**：`配图N-<描述>.png`，如 `配图5-鲲鹏文章效果.png`、`配图6-Before-After对比.png`。
+56. **kunpeng 和 ai-gzh 必须用独立 Base** → kunpeng 指向鲲鹏翼航无人机 Base（`Sfx7bgm...`），ai-gzh 指向大姚AI内容中台 16 表 Base（`TejybyBY...`）。绝不能把一个 skill 的 config 改成另一个的 Base——改完必须验证 `base_token` 和 `brand.company_name` 是否匹配。（2026-07-13 实测）
 
-31. **用户给的图必须全嵌，不能只挑 1 张（2026-07-06 用户原话："我的几张截图 没有都放进去啊"）** → 收到用户发的 N 张图，**必须**先做 4 步流程（见 `references/user-asset-ingestion.md`）：① vision_analyze 逐张盘点 → ② 3 类分类（当前文核心 / 姊妹篇延伸 / 不可用）→ ③ 输出位置分配表 → ④ 全部嵌入 HTML。**真实素材图不要虚线框**——它是已就位的图。**反例**：用户给了 5 张真实素材图（推草稿日志 / 资料包主图 / 资料包封面 / 飞书聊天 / 交付清单）+ 2 张风格对比图，agent 只用 1 张合成的风格对比图做 Step 3 配图，**剩下 5 张全部没用**。用户质问后才补嵌。**教训**：用户给的图 = 用户认可的资产，**全部嵌**才符合"已交付的真实感"。
+57. **assemble_atoms.py v2 从 13 表取料** → v1 从旧表按类型拉，v2 按 00 取料规则从 13 可独立取料原子库取。13 表原子有完整证据等级/使用边界/Hermes使用状态。取料逻辑：Hermes使用状态=可直接取料 + 证据等级 A/B + 按类型分组每种取1条确保多样性 + 至少1条边界原子。禁止只取单一类型。（2026-07-13 实测）
 
-详见 `references/live-failures.md`
+58. **sync_publish_queue.py 同步条件** → 从 08 精选生产池同步到 09 发布队列的条件：素材状态=可写 + 优先级含"P0" + 生产状态不是已入发布队列/已发布。同步后自动更新 08 表生产状态为"已入发布队列"。按标题防重复。（2026-07-13 实测）
 
-32. **`push_draft.py` 缺 `import urllib.request`（2026-07-06 实测）** → 脚本顶部 `import` 列表只有 `json, sys, os, re, subprocess`，没 `urllib.request`。后果：推后验真失败时调 `delete_draft()` 抛 `NameError: name 'urllib' is not defined`，**坏草稿留在草稿箱**（没删掉）。修法：脚本 L4 改为 `import json, sys, os, re, subprocess, urllib.request`。
+55. **用户发的HTML文件要截图替换配图（2026-07-11 实测）** → 用户发来一个HTML文件说「应该是这份」，意思是配图5应该用这个文件的截图，不是之前截的别的文章。收到用户指定的HTML文件后：① 复制到 output 目录；② 起 HTTP 服务；③ chromium 截图；④ 替换对应配图文件；⑤ 重新生成 HTML。不要用「已经截好了」来跳过——用户指定的文件就是他想要的。
 
-33. **推草稿验真阈值 `chinese > 1000` 误杀（2026-07-06 实测）** → 阈值 1000 偏严。`verify_draft` 拉回的 content 含 `<strong>` `<code>` 等 HTML 标签，正则 `[\u4e00-\u9fff]` 不会算标签属性里的中文，导致推后实际 5 张图 + 1828 字正文 → content 算下来只有 982 < 1000，触发删草稿逻辑。**修法**：阈值改为 `chinese > 800`（保留 200 字安全垫，不漏检真实损坏）。
+59. **小红书分发走独立skill（2026-07-13 实测）** → 公众号→小红书的分发不要用通用的多平台分发流程（aitoearn-multisite），要用专门的 `ai-xhs-platform` skill。通用流程的"改格式不改内核"不够——小红书需要6大公式、风格路由、postflight自动校验等独立逻辑。公众号长文写完后，Phase 8 触发"转小红书"时加载 `ai-xhs-platform`。
 
-34. **PNG base64 接近 2MB 限制（2026-07-06 实测）** → 5 张 1792x1024 PNG base64 内嵌 = ~8MB（HTML 体积），但推草稿时**公众号 content 字段限制 ~2MB**（不是 HTML 体积），即使 base64 替换成 CDN URL 后，content 长度仍可能接近 2MB。Pitfall #3 已提 `compress_images.py`，但**新规则**：推草稿版 HTML 必须用相对路径（不嵌 base64），且所有图预先跑 `compress_images.py` 转 JPG q80（每张 1.2MB → 200KB）。
+60. **16｜跨平台适配表是新增的第17张表（2026-07-13）** → 原16表Base新增了 `tblzd6LInkRTC2oh`（16｜跨平台适配表），用于存储公众号→各平台的适配内容。字段：来源选题(关联08)、目标平台、适配标题、适配正文、平台标签/话题、封面提示词、适配状态、发布链接、阅读/播放、点赞、收藏、评论、数据备注。09发布队列的"发布渠道"也已扩展为8个选项（+知乎/抖音/视频号/B站）。
+63. **用户说「写公众号内容」时默认用引流文风格（2026-07-14 用户纠正）** → 用户说「先帮我写今天的工众号内容」，agent用了dayao实战复盘体，用户说「这篇不是用的我的那个引流的写的吗」。根因：风格路由决策表的默认路由写的是dayao-writing-prompt，但用户的公众号主要目的是引流获客。修法：默认路由改为lead-gen-writing-style，只有用户明确说「技术文/实战复盘」时才用dayao。
+64. **配图必须用归藏材质插画风格（2026-07-14 用户纠正）** → 用通用GPT Image 2 prompt生成配图，用户说"生图的风格怎么也被修改了 按照之前的生图风格来啊 归藏的"。修法：生成配图前必须读取guizang-material-illustration skill的visual-style.md和prompt-patterns.md，按模板写prompt。
+65. **模拟截图不行，必须真实系统截图（2026-07-14 用户纠正）** → 用HTML+CSS模拟飞书表格界面，用户说"这个真实截图效果不行"。修法：真实截图=Playwright截取实际运行的系统界面。HTML渲染→起HTTP服务+Playwright截图。中文文件名先cp成英文名。
+66. **引流文正文质量要对齐历史最佳（2026-07-14 用户纠正）** → 用户说"正文内容好像没有7月11号哪篇写的好"。修法：写之前先读最近2-3篇的article.md，学习具体数字/案例展开/交付清单/角色价值。写完和历史文章对比。
 
-35. **微信草稿箱 `/cgi-bin/draft/get` 不带 media_id 拉列表返回空数组（2026-07-06 实测）** → 想列出现有草稿时，**必须**逐个传 `media_id` 才能拉到；不带参时返回 `{"news_item": []}` 让你误以为草稿箱是空的。**修法**：要"清重复草稿"时，从最近推送日志里抄 media_id 逐个 `draft/get` 验真，存在就 `draft/delete`。或者直接用 `draft/count`（如果有）拿总数。
+68. **标题必须走4步流程（2026-07-16 新增）** → 以前只跑 check_title_digest.py 校验字节。v4 新增完整标题流程：① 读 title-formulas.md 选公式 → ② 用 AI 批量出题 Prompt 出 10 个标题 → ③ 过 5 问自检 → ④ 过字节校验。不要跳过直接写标题——标题决定打开率，投入产出比最高。
 
-36. **视觉 QA 用 vision_analyze 看到 emoji 渲染成方框（误以为 bug）** → vision 工具看 `<div class="sshot-tag">📸 待补充：...</div>` 时，emoji `📸` 有时渲染成"⊠"或方框——**这是 fontconfig 问题，不是 HTML bug**。在浏览器里 emoji 正常显示。判断标准：看 vision 报告里 "栏头图标问题" 时，**先用浏览器/移动端打开 HTML 验证**再决定是否修。
+69. **信息峰值密度纳入写作硬约束（2026-07-16 新增）** → 每 300 字至少 1 个信息峰值（金句/数据/小案例/对比/反常识）。postflight v4 自动检查（Step 7，⚠️ 警告不阻断）。写作时主动每段自检，不要等 postflight 报警。详见 `references/information-density.md`。
 
-37. **CTAs 顺序"先不挂闲鱼→加微信→闲鱼挂"必须反映在所有产物（2026-07-06 用户原话：\"先不挂闲鱼 先让他们联系我 我明天挂闲鱼\"）** → Pitfall #27 已记录，但这里强化：CTA 改动必须**同步**到 (a) article.md、(b) 两个 HTML、(c) 飞书资料包。漏一个就是版本不一致。**修法**：CTA 变更时把产物清单打出来逐个确认。
-
-38. **多步交付完成度 = 自我验证 + 单条汇报（2026-07-06 用户原话两次"还没完成吗"/"你直接搞完"）** → Pitfall #28 已记录。补充：**跑完每步立刻 self-verify**（文件存在 / size / content 关键字），把"已生成 v6 HTML 1.39MB / 6 图 4 截图占位 / 推草稿成功 media_id=..."压缩成 3 行汇报。**反模式**：跑完一步停下来等用户问，被问才汇报——每个停顿都让用户怀疑"卡住了"。
-
-
-
-每次正式交付必须输出：
-
-| 项 | 结果 |
-|---|---|
-| skill | ai-gzh-platform |
-| config | configured / blocked |
-| article workflow | 13步已执行 / 哪步阻塞 |
-| image model | 实际 model |
-| image endpoint | 已实测 2xx / 阻塞 |
-| image files | cover + n 张正文图 |
-| visual QA | 通过 / 哪张失败 |
-| article QA | L1-L4 通过 / 哪层失败 |
-| title bytes | x / 30 |
-| digest bytes | x / 54 |
-| HTML | 微信粘贴版 + 推草稿版 / 阻塞 |
-| optional publish | 飞书/公众号草稿是否执行 |
+70. **postflight v4 从 6 步扩展到 8 步（2026-07-16）** → 新增 Step 6（段落行距，阻断）和 Step 7（信息峰值密度，警告）。段落行距检查排除标题/表格/代码块/列表/引用块/配图标记，只检查正文段落。SKILL.md 的验证项从 6 条扩展到 8 条。
