@@ -77,31 +77,10 @@ def main():
     )
     brand["brand_name"] = brand_name
 
-    # 排版风格
-    styles = cfg.get("html_styles", {})
-    style_names = [f"{v['name']} ({k}) — {v.get('best_for', '')}" for k, v in styles.items()]
-    style_keys = list(styles.keys())
-    current_style = cfg.get("html_template", {}).get("style_name", "kunpeng-blue")
-    print(f"\n当前排版风格: {current_style}")
-    change = ask("是否更换排版风格?", default="n", choices=["y", "n"])
-    if change == "y":
-        for i, (k, v) in enumerate(styles.items(), 1):
-            print(f"  {i}. {v['name']} ({k}) — {v.get('best_for', '')}")
-        while True:
-            raw = input(f"选择 (1-{len(styles)}) [{current_style}]: ").strip()
-            if not raw:
-                break
-            try:
-                idx = int(raw) - 1
-                if 0 <= idx < len(style_keys):
-                    current_style = style_keys[idx]
-                    break
-            except ValueError:
-                if raw in style_keys:
-                    current_style = raw
-                    break
-            print(f"  无效选择，请输入 1-{len(styles)}")
-    cfg.setdefault("html_template", {})["style_name"] = current_style
+    # 排版由摸鱼小李 gzh-design-skill 接管（v4.1 启动版）
+    # 师傅 npx skills add https://github.com/isjiamu/gzh-design-skill 后
+    # 跑 npx gzh-design-skill render --input article.md --theme 摸鱼绿
+    # 不在本 skill 内置排版（避免 AGPL 传染）
 
     # 飞书配置
     feishu = cfg.get("feishu", {})
