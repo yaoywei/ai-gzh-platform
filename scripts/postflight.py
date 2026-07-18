@@ -57,12 +57,14 @@ def main():
         chinese = len(re.findall(r'[\u4e00-\u9fff]', content))
         all_ok &= check("article.md 存在", True, f"{chinese}字")
 
-        # 字数检查
-        all_ok &= check("字数 ≥2500", chinese >= 2500, f"{chinese}字")
+        # 字数检查（v4 启动版：1500-1800 字，完读率 55-65%；超过 2500 字掉到 30-40%）
+        all_ok &= check("字数 1500-1800（v4）", 1500 <= chinese <= 1800,
+                         f"{chinese}字（v4 区间）")
 
-        # 禁用词检查
+        # 禁用词检查（v4 启动版：含知识库 v0.1 §4.3 完整禁用清单）
         forbidden = ["赋能", "闭环", "颠覆式", "颗粒度", "抓手", "底层逻辑",
-                      "颠覆", "引领", "唯一", "综上所述", "值得注意的是"]
+                      "颠覆", "引领", "唯一", "综上所述", "值得注意的是",
+                      "降维打击", "打通", "永动机", "能量场", "显化", "调频"]
         found = [w for w in forbidden if w in content]
         all_ok &= check("禁用词零命中", len(found) == 0,
                          f"发现: {found}" if found else "")
@@ -200,11 +202,11 @@ def main():
 
         long_paras = []
         for i, para in enumerate(paragraphs):
-            if len(para) > 4:
+            if len(para) > 3:  # v4 启动版：≤3 行（原 ≤4 行加严）
                 long_paras.append((i + 1, len(para)))
 
-        all_ok &= check("段落 ≤4 行", len(long_paras) == 0,
-                         f"{len(long_paras)} 段超限" if long_paras else "")
+        all_ok &= check("段落 ≤3 行（v4）", len(long_paras) == 0,
+                         f"{len(long_paras)} 段超限（v4 ≤3 行）" if long_paras else "")
         if long_paras:
             for pnum, plen in long_paras[:5]:
                 print(f"    ⚠️ 第 {pnum} 段有 {plen} 行，建议拆分")
