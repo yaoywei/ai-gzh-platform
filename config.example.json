@@ -11,7 +11,6 @@
     "brand.brand_name": "公众号名称 / 品牌名",
     "brand.company_name": "正文中自然嵌入的公司全称，postflight 校验出现次数（可选）"
   },
-
   "setup_status": "needs_user_choice",
   "brand": {
     "brand_name": "你的公众号品牌",
@@ -28,7 +27,6 @@
     "P2": "核心读者画像2：角色 + 决策压力",
     "P3": "核心读者画像3：角色 + 转型诉求"
   },
-
   "feishu": {
     "enabled": false,
     "base_token": "",
@@ -38,7 +36,6 @@
     "app_secret": "",
     "as_identity": "bot"
   },
-
   "image_api": {
     "enabled": false,
     "endpoint": "https://api.zhongzhuan.chat/v1/images/generations",
@@ -47,7 +44,6 @@
     "cover_size": "1792x768",
     "content_size": "1792x1024"
   },
-
   "wechat_proxy": {
     "enabled": false,
     "server_ip": "",
@@ -56,7 +52,6 @@
     "appid_env": "WX_APPID",
     "appsecret_env": "WX_APPSECRET"
   },
-
   "html_template": {
     "style_name": "kunpeng-blue",
     "primary_color": "#0057FF",
@@ -142,13 +137,15 @@
       "best_for": "生活方式、副业、温和商业化"
     }
   },
-
   "image_style": {
     "name": "guizang-material",
     "style_prompt_prefix": ""
   },
-
-  "content_ratio": [60, 30, 10],
+  "content_ratio": [
+    60,
+    30,
+    10
+  ],
   "round_state": {
     "round": 1,
     "position_in_round": 0,
@@ -158,6 +155,68 @@
   "viral_research": {
     "search_days": 7,
     "min_hot_articles": 3,
-    "platforms": ["公众号", "小红书", "知乎"]
+    "platforms": [
+      "公众号",
+      "小红书",
+      "知乎"
+    ]
+  },
+  "v4_启动版": {
+    "一句话": "1 个人用 AI + 自动化，搭出能顶 1 个团队的工作流",
+    "1类生存画像": "月入 1-3 万内容/运营/小团队负责人",
+    "5栏目": [
+      "一人作战室",
+      "工作流拆解",
+      "真实项目复盘",
+      "新工具上生产线",
+      "自动化赚钱实验"
+    ],
+    "5段式": [
+      "卡",
+      "拆",
+      "工具",
+      "结果和坑",
+      "读者能拿走"
+    ],
+    "字数限制": {
+      "min": 1500,
+      "max": 1800,
+      "段落行数": 3
+    },
+    "8工具栈": [
+      "Hermes",
+      "Coze",
+      "n8n",
+      "飞书",
+      "Obsidian",
+      "WorkBuddy",
+      "Codex",
+      "中转站",
+      "公众号"
+    ],
+    "4阶梯产品": {
+      "L1": {
+        "价格": "9.9",
+        "产品": "SOP 单文档"
+      },
+      "L2": {
+        "价格": "99元/年",
+        "产品": "知识库 + 答疑群"
+      },
+      "L3": {
+        "价格": "199元/次",
+        "产品": "1v1 诊断"
+      },
+      "L4": {
+        "价格": "1999元",
+        "产品": "AI 自动化体系搭建"
+      }
+    },
+    "默认CTA": "关键词钩子（'回复 6 步'）",
+    "飞书_重做版选题库": "tblS107UZkvUGH90",
+    "飞书_08表新批次字段": [
+      "v4.1 第二批 30 入选",
+      "批次"
+    ]
   }
 }
