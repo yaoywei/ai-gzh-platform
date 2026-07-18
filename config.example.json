@@ -132,6 +132,18 @@
     "飞书_08表新批次字段": [
       "v4.1 第二批 30 入选",
       "批次"
-    ]
+    ],
+    "默认主题": {
+      "名字": "大姚青（克隆换色·渐变版）",
+      "主题ID": "dayao-qing-clone",
+      "提供方": "摸鱼小李 gzh-design-skill（独立 skill，不整合到本 skill 避免 AGPL 传染）",
+      "主色": "#0E3B6E 深海蓝",
+      "强调色": "#00A6A6 青绿",
+      "字体": "PingFang SC + Hiragino Sans GB + Microsoft YaHei + system",
+      "排版结构": "完全继承摸鱼绿 6 Parts 横滚目录 + 卡片化 + 14px 1.75 行高",
+      "渐变": "linear-gradient(135deg, #0E3B6E, #00A6A6) 深海蓝→青绿",
+      "AGPL 风险": "0（不 fork 不修改摸鱼小李原代码）"
+    },
+    "排版调用方式": "用 Claude Code skill tool 调 gzh-design-skill，主题写 dayao-qing-clone"
   }
 }
